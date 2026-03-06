@@ -1,0 +1,10 @@
+# Python EEG Pipeline Requirements
+
+# Install these packages:
+# pip install websocket-client numpy scipy sounddevice requests
+
+websocket-client>=1.6.4
+numpy>=1.24.0
+scipy>=1.11.0
+sounddevice>=0.4.6
+requests>=2.31.0
