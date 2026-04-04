@@ -19,192 +19,180 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
   }, [liveMetrics.timestamp]);
 
   const getScoreColor = (score) => {
-    if (score >= 75) return 'text-green-400';
-    if (score >= 50) return 'text-yellow-400';
-    return 'text-red-400';
+    if (score >= 75) return 'text-emerald-400';
+    if (score >= 50) return 'text-amber-400';
+    return 'text-rose-400';
   };
 
-  const getGaugeColor = (score) => {
-    if (score >= 75) return '#10b981'; // green
-    if (score >= 50) return '#f59e0b'; // yellow
-    return '#ef4444'; // red
+  const getThemeColor = (score) => {
+    if (score >= 75) return '#34d399'; // emerald-400
+    if (score >= 50) return '#fbbf24'; // amber-400
+    return '#fb7185'; // rose-400
   };
 
-  // Smooth and classy gauge visualization
+  // Modern circular progress ring matching the requested design
   const AttentionGauge = ({ value }) => {
     const percentage = Math.min(100, Math.max(0, value));
-    const rotation = (percentage / 100) * 180 - 90; // -90 to 90 degrees
-    const circumference = Math.PI * 160; // π * diameter for semicircle
-    const offset = circumference - (percentage / 100) * circumference;
-    const currentColor = getGaugeColor(percentage);
+    
+    // Circle properties
+    const r = 85; 
+    const circumference = 2 * Math.PI * r;
+    const gap = 8;
+    const segmentLength = (circumference / 4) - gap;
+    const fillOffset = circumference - (percentage / 100) * circumference;
+    
+    const currentColor = getThemeColor(percentage);
 
     return (
-      <div className="relative w-80 h-48 mx-auto mb-6">
-        <svg viewBox="0 0 200 120" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+      <div className="relative w-64 h-64 mx-auto mb-2 flex items-center justify-center">
+        <svg viewBox="0 0 200 200" className="w-full h-full transform -rotate-90">
           <defs>
-            {/* Dynamic gradient that matches the needle position */}
-            <linearGradient id="gaugeGradient" gradientUnits="userSpaceOnUse" x1="20" y1="100" x2="180" y2="100">
-              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.9" />
-              <stop offset="25%" stopColor="#f59e0b" stopOpacity="0.9" />
-              <stop offset="50%" stopColor="#f59e0b" stopOpacity="0.95" />
-              <stop offset="75%" stopColor="#10b981" stopOpacity="0.95" />
-              <stop offset="100%" stopColor="#10b981" stopOpacity="1" />
-            </linearGradient>
-            {/* Subtle shadow filter */}
-            <filter id="gaugeShadow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" />
-              <feOffset dx="0" dy="1" result="offsetblur" />
-              <feComponentTransfer>
-                <feFuncA type="linear" slope="0.2" />
-              </feComponentTransfer>
+            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
               <feMerge>
-                <feMergeNode />
+                <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
-            {/* Soft glow effect */}
-            <filter id="gaugeGlow">
-              <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-              <feMerge>
-                <feMergeNode in="coloredBlur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
+            
+            {/* Mask to create the 4 beautiful cutouts like the reference image */}
+            <mask id="gap-mask">
+               <circle 
+                  cx="100" cy="100" r={r}
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="20"
+                  strokeDasharray={`${segmentLength} ${gap}`}
+                  transform="rotate(45 100 100)"
+               />
+            </mask>
           </defs>
 
-          {/* Subtle outer glow ring */}
-          <path
-            d="M 18 100 A 82 82 0 0 1 182 100"
+          {/* Background Segmented Track */}
+          <circle 
+            cx="100" cy="100" r={r}
             fill="none"
-            stroke={currentColor}
-            strokeWidth="0.5"
-            strokeLinecap="round"
-            opacity="0.15"
+            stroke="rgba(148, 163, 184, 0.15)"
+            strokeWidth="3"
+            mask="url(#gap-mask)"
           />
 
-          {/* Background arc - thinner and more elegant */}
-          <path
-            d="M 25 100 A 75 75 0 0 1 175 100"
-            fill="none"
-            stroke="#334155"
-            strokeWidth="10"
-            strokeLinecap="round"
-            opacity="0.4"
-          />
-
-          {/* Progress arc - single color based on current value */}
-          <path
-            d="M 25 100 A 75 75 0 0 1 175 100"
+          {/* Foreground Progress Ring with Glow */}
+          <circle 
+            cx="100" cy="100" r={r}
             fill="none"
             stroke={currentColor}
-            strokeWidth="10"
+            strokeWidth="4"
             strokeLinecap="round"
-            strokeDasharray={`${circumference} ${circumference}`}
-            strokeDashoffset={offset}
-            filter="url(#gaugeGlow)"
+            strokeDasharray={circumference}
+            strokeDashoffset={fillOffset}
+            mask="url(#gap-mask)"
+            filter="url(#glow)"
             style={{
-              transition: 'stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.6s ease',
-              strokeLinejoin: 'round'
+              transition: 'stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), stroke 1s ease'
             }}
           />
-
-          {/* Refined tick marks */}
-          {[0, 25, 50, 75, 100].map((tick) => {
-            const angle = (tick / 100) * 180 - 90;
-            const rad = (angle * Math.PI) / 180;
-            const x1 = 100 + 68 * Math.cos(rad);
-            const y1 = 100 + 68 * Math.sin(rad);
-            const x2 = 100 + (tick === 0 || tick === 100 ? 64 : tick === 50 ? 63 : 65) * Math.cos(rad);
-            const y2 = 100 + (tick === 0 || tick === 100 ? 64 : tick === 50 ? 63 : 65) * Math.sin(rad);
-
-            return (
-              <line
-                key={tick}
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                stroke="#9ca3af"
-                strokeWidth={tick === 0 || tick === 100 ? "2" : "1.5"}
-                strokeLinecap="round"
-                opacity="0.5"
-              />
-            );
-          })}
-
-          {/* Labels with refined positioning */}
-          <text x="25" y="115" fontSize="10" fill="#6b7280" textAnchor="start" fontWeight="600">0</text>
-          <text x="100" y="26" fontSize="10" fill="#6b7280" textAnchor="middle" fontWeight="600">50</text>
-          <text x="175" y="115" fontSize="10" fill="#6b7280" textAnchor="end" fontWeight="600">100</text>
-
-          {/* Elegant needle with smooth transition */}
-          <g
-            transform={`rotate(${rotation} 100 100)`}
-            style={{ transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)' }}
-          >
-            {/* Needle glow matching gauge color */}
-            <line
-              x1="100"
-              y1="100"
-              x2="100"
-              y2="32"
-              stroke={currentColor}
-              strokeWidth="3"
-              strokeLinecap="round"
-              opacity="0.25"
-              filter="url(#gaugeGlow)"
-            />
-            {/* Main needle - sleek and thin */}
-            <line
-              x1="100"
-              y1="100"
-              x2="100"
-              y2="32"
-              stroke="#1f2937"
-              strokeWidth="2"
-              strokeLinecap="round"
-              filter="url(#gaugeShadow)"
-            />
-            {/* Needle tip with color indicator */}
-            <circle cx="100" cy="32" r="2.5" fill={currentColor} filter="url(#gaugeGlow)" />
-            <circle cx="100" cy="32" r="1.5" fill="#ffffff" opacity="0.9" />
-            {/* Center hub with refined design */}
-            <circle cx="100" cy="100" r="7" fill="#1f2937" filter="url(#gaugeShadow)" />
-            <circle cx="100" cy="100" r="5" fill="#374151" />
-            <circle cx="100" cy="100" r="2.5" fill={currentColor} opacity="0.7" />
-            <circle cx="100" cy="100" r="1" fill="#9ca3af" />
-          </g>
         </svg>
-        <div className="absolute bottom-14 left-0 right-0 text-center">
-          <div className="inline-block px-5 py-2 rounded-full bg-slate-800/95 backdrop-blur-sm shadow-lg border border-slate-600/50">
-            <span className={`text-4xl font-bold ${getScoreColor(value)}`} style={{ letterSpacing: '-0.02em' }}>
-              {value.toFixed(1)}
-            </span>
-          </div>
+
+        {/* Center Text Layout matching the image typography */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-2">
+          <span 
+            className="text-7xl font-display text-white transition-colors duration-500" 
+            style={{ textShadow: `0 0 20px ${currentColor}40` }}
+          >
+            {Math.round(value)}
+          </span>
+          <span className="text-[10px] font-semibold tracking-[0.25em] text-slate-400 mt-3 uppercase opacity-80">
+            Attention Score
+          </span>
         </div>
       </div>
     );
   };
 
-  const WaveBar = ({ label, value, color }) => {
+  const WaveRing = ({ label, value, color }) => {
     const percentage = Math.min(100, Math.max(0, value));
+    
+    // Circle properties for a smaller ring
+    const r = 40; 
+    const circumference = 2 * Math.PI * r;
+    const gap = 4;
+    const segmentLength = (circumference / 4) - gap;
+    const fillOffset = circumference - (percentage / 100) * circumference;
+    
+    const [band, rangePart1, rangePart2] = label.split(' ');
+    const bandId = band.toLowerCase();
 
     return (
-      <div className="mb-4 p-4 rounded-xl glass-card transition-all duration-300 hover:border-emerald-500/20 group">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-bold text-gray-100">{label}</span>
-          <span className="text-sm font-bold px-3 py-1 rounded-full text-white shadow-md" style={{ backgroundColor: color }}>
-            {value.toFixed(2)}
-          </span>
+      <div className="flex flex-col items-center justify-center p-5 glass-card rounded-2xl group transition-all duration-300 hover:border-emerald-500/20 shadow-lg">
+        <div className="relative w-24 h-24 flex items-center justify-center mb-3">
+          <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+            <defs>
+              <filter id={`glow-${bandId}`} x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              
+              <mask id={`gap-mask-${bandId}`}>
+                 <circle 
+                    cx="50" cy="50" r={r}
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="12"
+                    strokeDasharray={`${segmentLength} ${gap}`}
+                    transform="rotate(45 50 50)"
+                 />
+              </mask>
+            </defs>
+
+            {/* Background Track */}
+            <circle 
+              cx="50" cy="50" r={r}
+              fill="none"
+              stroke="rgba(148, 163, 184, 0.15)"
+              strokeWidth="2.5"
+              mask={`url(#gap-mask-${bandId})`}
+            />
+
+            {/* Foreground Progress Ring */}
+            <circle 
+              cx="50" cy="50" r={r}
+              fill="none"
+              stroke={color}
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={fillOffset}
+              mask={`url(#gap-mask-${bandId})`}
+              filter={`url(#glow-${bandId})`}
+              style={{
+                transition: 'stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), stroke 1s ease'
+              }}
+            />
+          </svg>
+
+          {/* Center Value */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-1">
+            <span 
+              className="text-2xl font-display text-white transition-colors duration-500 font-medium" 
+              style={{ textShadow: `0 0 15px ${color}60` }}
+            >
+              {value.toFixed(1)}
+            </span>
+          </div>
         </div>
-        <div className="w-full bg-slate-900/60 rounded-full h-4 overflow-hidden shadow-inner border border-slate-700/50">
-          <div
-            className="h-4 rounded-full transition-all duration-500 ease-out shadow-lg"
-            style={{
-              width: `${percentage}%`,
-              background: `linear-gradient(90deg, ${color}dd, ${color})`
-            }}
-          />
+        
+        {/* Label and Range */}
+        <div className="text-center mt-1">
+            <h4 className="text-[11px] font-bold uppercase tracking-widest mb-1 opacity-90" style={{ color: color }}>
+              {band}
+            </h4>
+            <p className="text-[9px] text-slate-400 font-medium">
+              {rangePart1} {rangePart2}
+            </p>
         </div>
       </div>
     );
@@ -259,13 +247,13 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
           </svg>
           Brain Wave Activity
         </h3>
-        <div className="space-y-3">
-          <WaveBar label="Alpha (8-13 Hz)" value={liveMetrics.alpha || 0} color="#8b5cf6" />
-          <WaveBar label="Beta (13-30 Hz)" value={liveMetrics.beta || 0} color="#a855f7" />
-          <WaveBar label="Theta (4-8 Hz)" value={liveMetrics.theta || 0} color="#ec4899" />
-          <WaveBar label="Delta (0.5-4 Hz)" value={liveMetrics.delta || 0} color="#10b981" />
-          {liveMetrics.gamma !== undefined && (
-            <WaveBar label="Gamma (30-100 Hz)" value={liveMetrics.gamma} color="#f59e0b" />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 mt-8">
+          <WaveRing label="Alpha (8-13 Hz)" value={liveMetrics.alpha || 0} color="#c084fc" />
+          <WaveRing label="Beta (13-30 Hz)" value={liveMetrics.beta || 0} color="#a855f7" />
+          <WaveRing label="Theta (4-8 Hz)" value={liveMetrics.theta || 0} color="#f472b6" />
+          <WaveRing label="Delta (0.5-4 Hz)" value={liveMetrics.delta || 0} color="#34d399" />
+          {(liveMetrics.gamma !== undefined || true) && (
+            <WaveRing label="Gamma (30-100 Hz)" value={liveMetrics.gamma || 0} color="#fbbf24" />
           )}
         </div>
       </div>
