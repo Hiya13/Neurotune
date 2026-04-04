@@ -107,7 +107,7 @@ function SessionControls({ user, onStartSession, onStopSession, sessionActive, w
                 max="100"
                 value={soundVolume}
                 onChange={(e) => setSoundVolume(parseInt(e.target.value))}
-                className="w-full accent-purple-500"
+                className="w-full accent-[#2dd4bf]"
                 disabled={!wsConnected}
               />
               <div className="flex justify-between text-xs text-gray-400 mt-1">
