@@ -69,7 +69,7 @@ function Dashboard({ user, sessions, onRefresh, isLoading, wsConnected }) {
         isSoundActive: false,
         timestamp: null
       });
-      
+
       // Refresh session list
       if (onRefresh) {
         onRefresh();
@@ -121,24 +121,22 @@ function Dashboard({ user, sessions, onRefresh, isLoading, wsConnected }) {
         <h2 className="text-2xl font-bold text-white">Dashboard</h2>
         <div className="flex items-center space-x-4">
           {/* View Mode Toggle */}
-          <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-1 flex">
+          <div className="glass-panel p-1 rounded-lg flex gap-1">
             <button
               onClick={() => setViewMode('live')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                viewMode === 'live'
-                  ? 'bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white shadow-md'
-                  : 'text-gray-400 hover:text-white hover:bg-slate-700'
-              }`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'live'
+                  ? 'bg-emerald-500/20 text-emerald-300 shadow-md border border-emerald-500/30'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
             >
               Live Monitoring
             </button>
             <button
               onClick={() => setViewMode('manual')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                viewMode === 'manual'
-                  ? 'bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white shadow-md'
-                  : 'text-gray-400 hover:text-white hover:bg-slate-700'
-              }`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'manual'
+                  ? 'bg-emerald-500/20 text-emerald-300 shadow-md border border-emerald-500/30'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
             >
               Manual Entry
             </button>
@@ -146,7 +144,7 @@ function Dashboard({ user, sessions, onRefresh, isLoading, wsConnected }) {
           <button
             onClick={onRefresh}
             disabled={isLoading}
-            className="bg-gradient-to-r from-[#667eea] to-[#764ba2] hover:from-[#5568d3] hover:to-[#653a8b] text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+            className="glass-button bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 border-emerald-500/30 px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
           >
             {isLoading ? 'Refreshing...' : 'Refresh Data'}
           </button>
@@ -155,23 +153,23 @@ function Dashboard({ user, sessions, onRefresh, isLoading, wsConnected }) {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6 hover:border-purple-500/50 transition-all">
-          <div className="text-sm font-medium text-gray-400">Total Sessions</div>
-          <div className="mt-2 text-3xl font-bold text-white">{stats.totalSessions}</div>
+        <div className="glass-card p-6 rounded-xl hover:border-emerald-500/30 transition-all duration-300">
+          <div className="text-sm font-medium text-slate-400">Total Sessions</div>
+          <div className="mt-2 text-3xl font-display font-semibold text-white">{stats.totalSessions}</div>
         </div>
-        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6 hover:border-purple-500/50 transition-all">
-          <div className="text-sm font-medium text-gray-400">Average Score</div>
-          <div className={`mt-2 text-3xl font-bold ${getScoreColor(stats.avgAttentionScore)}`}>
+        <div className="glass-card p-6 rounded-xl hover:border-emerald-500/30 transition-all duration-300">
+          <div className="text-sm font-medium text-slate-400">Average Score</div>
+          <div className={`mt-2 text-3xl font-display font-semibold ${getScoreColor(stats.avgAttentionScore)}`}>
             {stats.avgAttentionScore}
           </div>
         </div>
-        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6 hover:border-purple-500/50 transition-all">
-          <div className="text-sm font-medium text-gray-400">Highest Score</div>
-          <div className="mt-2 text-3xl font-bold text-green-400">{stats.maxAttentionScore}</div>
+        <div className="glass-card p-6 rounded-xl hover:border-emerald-500/30 transition-all duration-300">
+          <div className="text-sm font-medium text-slate-400">Highest Score</div>
+          <div className="mt-2 text-3xl font-display font-semibold text-emerald-400">{stats.maxAttentionScore}</div>
         </div>
-        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6 hover:border-purple-500/50 transition-all">
-          <div className="text-sm font-medium text-gray-400">Lowest Score</div>
-          <div className="mt-2 text-3xl font-bold text-red-400">{stats.minAttentionScore}</div>
+        <div className="glass-card p-6 rounded-xl hover:border-emerald-500/30 transition-all duration-300">
+          <div className="text-sm font-medium text-slate-400">Lowest Score</div>
+          <div className="mt-2 text-3xl font-display font-semibold text-rose-400">{stats.minAttentionScore}</div>
         </div>
       </div>
 
@@ -200,13 +198,13 @@ function Dashboard({ user, sessions, onRefresh, isLoading, wsConnected }) {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Manual Logging Form */}
-          <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6">
+          <div className="glass-card p-6 rounded-xl">
             <h3 className="text-lg font-semibold text-white mb-4">Log Session Manually</h3>
             <LoggingForm user={user} onSuccess={onRefresh} />
           </div>
 
           {/* Latest Session Details */}
-          <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6">
+          <div className="glass-card p-6 rounded-xl">
             <h3 className="text-lg font-semibold text-white mb-4">Latest Session</h3>
             <LatestSessionDetails session={latestSession} />
           </div>
@@ -214,7 +212,7 @@ function Dashboard({ user, sessions, onRefresh, isLoading, wsConnected }) {
       )}
 
       {/* Historical Trend Chart */}
-      <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6">
+      <div className="glass-card p-6 rounded-xl">
         <h3 className="text-lg font-semibold text-white mb-4">Attention Score Trend (Historical)</h3>
         <ScoreTrendChart sessions={sessions} />
       </div>

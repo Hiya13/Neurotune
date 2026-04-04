@@ -40,11 +40,11 @@ function SessionControls({ user, onStartSession, onStopSession, sessionActive, w
   };
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6">
-      <h3 className="text-lg font-semibold text-white mb-4">Session Controls</h3>
+    <div className="glass-card rounded-xl p-6">
+      <h3 className="text-lg font-semibold text-white mb-4 transition-all">Session Controls</h3>
 
       {/* Connection Status */}
-      <div className="mb-6 p-3 rounded-lg bg-slate-900 border border-slate-700">
+      <div className="mb-6 p-3 rounded-lg glass-panel">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-300">WebSocket Status:</span>
           <div className="flex items-center space-x-2">
@@ -63,14 +63,14 @@ function SessionControls({ user, onStartSession, onStopSession, sessionActive, w
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Task Context *
             </label>
-            <input
-              type="text"
-              value={taskContext}
-              onChange={(e) => setTaskContext(e.target.value)}
-              placeholder="e.g., Reading, Studying, Working"
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-600 text-white placeholder-gray-500 rounded-md focus:ring-purple-500 focus:border-purple-500"
-              disabled={!wsConnected}
-            />
+              <input
+                type="text"
+                value={taskContext}
+                onChange={(e) => setTaskContext(e.target.value)}
+                placeholder="e.g., Reading, Studying, Working"
+                className="w-full px-3 py-2 glass-input rounded-lg text-white placeholder-slate-400"
+                disabled={!wsConnected}
+              />
           </div>
 
           {/* Intervention Type */}
@@ -78,12 +78,12 @@ function SessionControls({ user, onStartSession, onStopSession, sessionActive, w
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Intervention Type
             </label>
-            <select
-              value={interventionType}
-              onChange={(e) => setInterventionType(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-600 text-white rounded-md focus:ring-purple-500 focus:border-purple-500"
-              disabled={!wsConnected}
-            >
+              <select
+                value={interventionType}
+                onChange={(e) => setInterventionType(e.target.value)}
+                className="w-full px-3 py-2 glass-input rounded-lg text-white [&>option]:bg-slate-800"
+                disabled={!wsConnected}
+              >
               <option value="none">None (Monitor Only)</option>
               <option value="auditory">Auditory (Sound Feedback)</option>
               <option value="visual">Visual Feedback</option>
@@ -117,11 +117,10 @@ function SessionControls({ user, onStartSession, onStopSession, sessionActive, w
             </div>
           )}
 
-          {/* Start Button */}
           <button
             onClick={handleStartSession}
             disabled={!wsConnected || loading}
-            className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-4 px-6 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-xl hover:shadow-2xl flex items-center justify-center space-x-3"
+            className="w-full glass-button bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border-emerald-500/30 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] font-bold py-4 px-6 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center space-x-3"
           >
             {loading ? (
               <>
@@ -158,11 +157,10 @@ function SessionControls({ user, onStartSession, onStopSession, sessionActive, w
             </div>
           </div>
 
-          {/* Stop Button */}
           <button
             onClick={handleStopSession}
             disabled={loading}
-            className="w-full bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-bold py-4 px-6 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-xl hover:shadow-2xl flex items-center justify-center space-x-3"
+            className="w-full glass-button bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 border-rose-500/30 hover:shadow-[0_0_20px_rgba(244,63,94,0.2)] font-bold py-4 px-6 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center space-x-3"
           >
             {loading ? (
               <>
@@ -187,8 +185,8 @@ function SessionControls({ user, onStartSession, onStopSession, sessionActive, w
       )}
 
       {/* Instructions */}
-      <div className="mt-6 p-4 bg-purple-900/30 border border-purple-700 rounded-lg">
-        <h4 className="text-sm font-semibold text-purple-300 mb-2">📋 Instructions</h4>
+      <div className="mt-6 p-4 glass-panel bg-emerald-900/10 border-emerald-500/20 rounded-lg">
+        <h4 className="text-sm font-semibold text-emerald-300 mb-2">📋 Instructions</h4>
         <ol className="text-xs text-purple-200 space-y-1 list-decimal list-inside">
           <li>Ensure Python EEG pipeline is running</li>
           <li>Put on EEG headset and check signal quality</li>

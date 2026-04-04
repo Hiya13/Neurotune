@@ -52,26 +52,26 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
             </linearGradient>
             {/* Subtle shadow filter */}
             <filter id="gaugeShadow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur in="SourceAlpha" stdDeviation="1.5"/>
-              <feOffset dx="0" dy="1" result="offsetblur"/>
+              <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" />
+              <feOffset dx="0" dy="1" result="offsetblur" />
               <feComponentTransfer>
-                <feFuncA type="linear" slope="0.2"/>
+                <feFuncA type="linear" slope="0.2" />
               </feComponentTransfer>
               <feMerge>
-                <feMergeNode/>
-                <feMergeNode in="SourceGraphic"/>
+                <feMergeNode />
+                <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
             {/* Soft glow effect */}
             <filter id="gaugeGlow">
-              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+              <feGaussianBlur stdDeviation="2" result="coloredBlur" />
               <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
           </defs>
-          
+
           {/* Subtle outer glow ring */}
           <path
             d="M 18 100 A 82 82 0 0 1 182 100"
@@ -81,7 +81,7 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
             strokeLinecap="round"
             opacity="0.15"
           />
-          
+
           {/* Background arc - thinner and more elegant */}
           <path
             d="M 25 100 A 75 75 0 0 1 175 100"
@@ -91,7 +91,7 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
             strokeLinecap="round"
             opacity="0.4"
           />
-          
+
           {/* Progress arc - single color based on current value */}
           <path
             d="M 25 100 A 75 75 0 0 1 175 100"
@@ -102,12 +102,12 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
             strokeDasharray={`${circumference} ${circumference}`}
             strokeDashoffset={offset}
             filter="url(#gaugeGlow)"
-            style={{ 
+            style={{
               transition: 'stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.6s ease',
               strokeLinejoin: 'round'
             }}
           />
-          
+
           {/* Refined tick marks */}
           {[0, 25, 50, 75, 100].map((tick) => {
             const angle = (tick / 100) * 180 - 90;
@@ -116,7 +116,7 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
             const y1 = 100 + 68 * Math.sin(rad);
             const x2 = 100 + (tick === 0 || tick === 100 ? 64 : tick === 50 ? 63 : 65) * Math.cos(rad);
             const y2 = 100 + (tick === 0 || tick === 100 ? 64 : tick === 50 ? 63 : 65) * Math.sin(rad);
-            
+
             return (
               <line
                 key={tick}
@@ -131,14 +131,14 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
               />
             );
           })}
-          
+
           {/* Labels with refined positioning */}
           <text x="25" y="115" fontSize="10" fill="#6b7280" textAnchor="start" fontWeight="600">0</text>
           <text x="100" y="26" fontSize="10" fill="#6b7280" textAnchor="middle" fontWeight="600">50</text>
           <text x="175" y="115" fontSize="10" fill="#6b7280" textAnchor="end" fontWeight="600">100</text>
-          
+
           {/* Elegant needle with smooth transition */}
-          <g 
+          <g
             transform={`rotate(${rotation} 100 100)`}
             style={{ transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)' }}
           >
@@ -188,9 +188,9 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
 
   const WaveBar = ({ label, value, color }) => {
     const percentage = Math.min(100, Math.max(0, value));
-    
+
     return (
-      <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-slate-800/80 to-slate-700/80 border border-slate-600/50 shadow-md hover:shadow-lg transition-all duration-300">
+      <div className="mb-4 p-4 rounded-xl glass-card transition-all duration-300 hover:border-emerald-500/20 group">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-bold text-gray-100">{label}</span>
           <span className="text-sm font-bold px-3 py-1 rounded-full text-white shadow-md" style={{ backgroundColor: color }}>
@@ -200,8 +200,8 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
         <div className="w-full bg-slate-900/60 rounded-full h-4 overflow-hidden shadow-inner border border-slate-700/50">
           <div
             className="h-4 rounded-full transition-all duration-500 ease-out shadow-lg"
-            style={{ 
-              width: `${percentage}%`, 
+            style={{
+              width: `${percentage}%`,
               background: `linear-gradient(90deg, ${color}dd, ${color})`
             }}
           />
@@ -213,11 +213,10 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
   return (
     <div className="space-y-6">
       {/* Status Banner */}
-      <div className={`p-5 rounded-2xl shadow-xl ${
-        sessionActive 
-          ? 'bg-gradient-to-r from-green-600 to-emerald-700 border-2 border-green-500' 
-          : 'glass-effect border-2 border-slate-700'
-      } transition-all duration-300`}>
+      <div className={`p-5 rounded-2xl transition-all duration-500 glass-panel border border-white/5 ${sessionActive
+          ? 'shadow-[0_0_15px_rgba(16,185,129,0.15)] border-emerald-500/30'
+          : ''
+        }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className={`w-4 h-4 rounded-full ${sessionActive ? 'animate-pulse bg-white shadow-lg' : 'bg-gray-500'}`} />
@@ -237,8 +236,8 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
       </div>
 
       {/* Main Attention Score Gauge */}
-      <div className="glass-effect rounded-2xl shadow-2xl p-8 border-2 border-white/50">
-        <h3 className="text-2xl font-bold gradient-text mb-6 text-center flex items-center justify-center gap-2">
+      <div className="glass-panel rounded-2xl p-8 hover:border-emerald-500/20 transition-all duration-500 group">
+        <h3 className="text-2xl font-display font-semibold gradient-text mb-6 text-center flex items-center justify-center gap-2 drop-shadow-md">
           <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 20 20">
             <path d="M10 3.5a1.5 1.5 0 013 0V4a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-.5a1.5 1.5 0 000 3h.5a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-.5a1.5 1.5 0 00-3 0v.5a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1h-.5a1.5 1.5 0 010-3H4a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1v-.5z" />
           </svg>
@@ -246,15 +245,15 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
         </h3>
         <AttentionGauge value={liveMetrics.attentionScore || 0} />
         <p className="text-center text-sm text-gray-400 mt-4 font-medium">
-          {liveMetrics.timestamp 
+          {liveMetrics.timestamp
             ? `⏱️ Last update: ${new Date(liveMetrics.timestamp).toLocaleTimeString()}`
             : '⌛ Waiting for data...'}
         </p>
       </div>
 
       {/* Brain Wave Powers */}
-      <div className="glass-effect rounded-2xl shadow-2xl p-8 border-2 border-white/50">
-        <h3 className="text-2xl font-bold gradient-text mb-6 flex items-center gap-2">
+      <div className="glass-panel rounded-2xl p-8 hover:border-emerald-500/20 transition-all duration-500">
+        <h3 className="text-2xl font-display font-semibold gradient-text mb-6 flex items-center gap-2 drop-shadow-md">
           <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
           </svg>
@@ -273,7 +272,7 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
 
       {/* Mini Timeline Chart */}
       {history.length > 0 && (
-        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6">
+        <div className="glass-card rounded-xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Score Timeline</h3>
           <div className="h-32 flex items-end space-x-1">
             {history.map((point, index) => {
@@ -297,7 +296,7 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
 
       {/* Session Stats */}
       {history.length > 0 && (
-        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-lg p-6">
+        <div className="glass-card rounded-xl p-6">
           <h3 className="text-lg font-semibold text-white mb-4">Session Statistics</h3>
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center">

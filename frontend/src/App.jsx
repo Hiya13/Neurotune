@@ -13,7 +13,7 @@ function App() {
   useEffect(() => {
     const initAuth = async () => {
       const token = authService.getToken();
-      
+
       if (token) {
         const currentUser = await authService.getCurrentUser();
         setUser(currentUser);
@@ -28,7 +28,7 @@ function App() {
           }
         }
       }
-      
+
       setIsAuthReady(true);
       setIsLoading(false);
     };
@@ -58,7 +58,7 @@ function App() {
 
   const handleLogin = async (userData) => {
     setUser(userData.user);
-    
+
     // Connect WebSocket after login
     try {
       const token = authService.getToken();
@@ -96,18 +96,16 @@ function App() {
   }
 
   return (
-    <div className="dark">
-      <div className="min-h-screen bg-slate-950">
-        {user ? (
-          <DashboardLayout 
-            user={user} 
-            onLogout={handleLogout}
-            wsConnected={wsConnected}
-          />
-        ) : (
-          <AuthView onLogin={handleLogin} />
-        )}
-      </div>
+    <div className="dark min-h-screen bg-transparent text-white">
+      {user ? (
+        <DashboardLayout
+          user={user}
+          onLogout={handleLogout}
+          wsConnected={wsConnected}
+        />
+      ) : (
+        <AuthView onLogin={handleLogin} />
+      )}
     </div>
   );
 }

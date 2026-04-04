@@ -40,7 +40,7 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
   useEffect(() => {
     if (user) {
       fetchSessions();
-      
+
       // Auto-refresh every 30 seconds
       const interval = setInterval(fetchSessions, 30000);
       return () => clearInterval(interval);
@@ -55,7 +55,7 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
     switch (currentView) {
       case 'dashboard':
         return (
-          <Dashboard 
+          <Dashboard
             user={user}
             sessions={historicalSessions}
             onRefresh={fetchSessions}
@@ -65,7 +65,7 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
         );
       case 'history':
         return (
-          <SessionHistory 
+          <SessionHistory
             sessions={historicalSessions}
             isLoading={isLoading}
           />
@@ -78,9 +78,9 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-transparent">
       {/* Navigation Bar */}
-      <nav className="glass-effect shadow-xl border-b border-slate-700/50 sticky top-0 z-50">
+      <nav className="glass-panel sticky top-0 z-50">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex">
@@ -96,41 +96,38 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 <button
                   onClick={() => setCurrentView('dashboard')}
-                  className={`${
-                    currentView === 'dashboard'
-                      ? 'border-purple-500 text-purple-400 font-semibold'
-                      : 'border-transparent text-gray-400 hover:border-purple-400 hover:text-purple-300'
-                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-all duration-200`}
+                  className={`${currentView === 'dashboard'
+                      ? 'border-emerald-400 text-emerald-300 font-semibold shadow-[0_2px_10px_rgba(16,185,129,0.3)]'
+                      : 'border-transparent text-slate-400 hover:text-emerald-200'
+                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-all duration-300`}
                 >
                   Dashboard
                 </button>
                 <button
                   onClick={() => setCurrentView('history')}
-                  className={`${
-                    currentView === 'history'
-                      ? 'border-purple-500 text-purple-400 font-semibold'
-                      : 'border-transparent text-gray-400 hover:border-purple-400 hover:text-purple-300'
-                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-all duration-200`}
+                  className={`${currentView === 'history'
+                      ? 'border-emerald-400 text-emerald-300 font-semibold shadow-[0_2px_10px_rgba(16,185,129,0.3)]'
+                      : 'border-transparent text-slate-400 hover:text-emerald-200'
+                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-all duration-300`}
                 >
                   Session History
                 </button>
                 <button
                   onClick={() => setCurrentView('profile')}
-                  className={`${
-                    currentView === 'profile'
-                      ? 'border-purple-500 text-purple-400 font-semibold'
-                      : 'border-transparent text-gray-400 hover:border-purple-400 hover:text-purple-300'
-                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-all duration-200`}
+                  className={`${currentView === 'profile'
+                      ? 'border-emerald-400 text-emerald-300 font-semibold shadow-[0_2px_10px_rgba(16,185,129,0.3)]'
+                      : 'border-transparent text-slate-400 hover:text-emerald-200'
+                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-all duration-300`}
                 >
                   Profile
                 </button>
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-gray-300">{user.email}</span>
+              <span className="text-sm font-medium text-slate-300">{user.email}</span>
               <button
                 onClick={handleLogout}
-                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-6 py-2 rounded-lg text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                className="glass-button text-gray-200 px-6 py-2 rounded-lg text-sm font-semibold hover:text-red-400 border border-white/5"
               >
                 Logout
               </button>
@@ -144,31 +141,28 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
         <div className="px-2 pt-2 pb-3 space-y-1">
           <button
             onClick={() => setCurrentView('dashboard')}
-            className={`${
-              currentView === 'dashboard'
+            className={`${currentView === 'dashboard'
                 ? 'bg-slate-700 border-purple-500 text-purple-400'
                 : 'border-transparent text-gray-400 hover:bg-slate-700/50'
-            } block pl-3 pr-4 py-2 border-l-4 text-base font-medium w-full text-left`}
+              } block pl-3 pr-4 py-2 border-l-4 text-base font-medium w-full text-left`}
           >
             Dashboard
           </button>
           <button
             onClick={() => setCurrentView('history')}
-            className={`${
-              currentView === 'history'
+            className={`${currentView === 'history'
                 ? 'bg-slate-700 border-purple-500 text-purple-400'
                 : 'border-transparent text-gray-400 hover:bg-slate-700/50'
-            } block pl-3 pr-4 py-2 border-l-4 text-base font-medium w-full text-left`}
+              } block pl-3 pr-4 py-2 border-l-4 text-base font-medium w-full text-left`}
           >
             Session History
           </button>
           <button
             onClick={() => setCurrentView('profile')}
-            className={`${
-              currentView === 'profile'
+            className={`${currentView === 'profile'
                 ? 'bg-slate-700 border-purple-500 text-purple-400'
                 : 'border-transparent text-gray-400 hover:bg-slate-700/50'
-            } block pl-3 pr-4 py-2 border-l-4 text-base font-medium w-full text-left`}
+              } block pl-3 pr-4 py-2 border-l-4 text-base font-medium w-full text-left`}
           >
             Profile
           </button>
