@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import authService from './services/authService';
 import websocketService from './services/websocketService';
 import AuthView from './components/AuthView';
 import DashboardLayout from './components/DashboardLayout';
+import GamesPage from './pages/GamesPage';
+import TideController from './components/games/TideController/TideController';
+import MindGarden from './components/games/MindGarden/MindGarden';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -78,10 +82,10 @@ function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-[#0a1218]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2dd4bf] mx-auto"></div>
+          <p className="mt-4 text-slate-400">Loading Neurotune...</p>
         </div>
       </div>
     );
@@ -89,25 +93,43 @@ function App() {
 
   if (!isAuthReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-600">Initializing...</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#0a1218]">
+        <p className="text-slate-400">Initializing...</p>
       </div>
     );
   }
 
   return (
-    <div className="dark min-h-screen bg-transparent text-white">
-      {user ? (
-        <DashboardLayout
-          user={user}
-          onLogout={handleLogout}
-          wsConnected={wsConnected}
-        />
-      ) : (
-        <AuthView onLogin={handleLogin} />
-      )}
-    </div>
+    <Router>
+      <div className="dark min-h-screen bg-[#0a1218] text-white">
+        {user ? (
+          <DashboardLayout
+            user={user}
+            onLogout={handleLogout}
+            wsConnected={wsConnected}
+          >
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={null} /> {/* Handled by DashboardLayout logic for now or refactored later */}
+              <Route path="/history" element={null} />
+              <Route path="/profile" element={null} />
+              <Route path="/games" element={<GamesPage wsConnected={wsConnected} />} />
+              <Route path="/games/tide-controller" element={<TideController onExit={() => window.location.href = '/games'} />} />
+              <Route path="/games/mind-garden" element={
+                <MindGarden 
+                  wsUrl={import.meta.env.VITE_TIDE_WS_URL || 'ws://localhost:8080'} 
+                  onExit={() => window.location.href = '/games'} 
+                />
+              } />
+            </Routes>
+          </DashboardLayout>
+        ) : (
+          <AuthView onLogin={handleLogin} />
+        )}
+      </div>
+    </Router>
   );
 }
 
 export default App;
+

@@ -1,11 +1,25 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
 import Dashboard from './Dashboard';
 import SessionHistory from './SessionHistory';
 import Profile from './Profile';
 
-function DashboardLayout({ user, onLogout, wsConnected }) {
-  const [currentView, setCurrentView] = useState('dashboard');
+function DashboardLayout({ user, onLogout, wsConnected, children }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Map pathname to view for styling active links
+  const getActiveView = () => {
+    const path = location.pathname;
+    if (path.startsWith('/dashboard')) return 'dashboard';
+    if (path.startsWith('/history')) return 'history';
+    if (path.startsWith('/profile')) return 'profile';
+    if (path.startsWith('/games')) return 'games';
+    return 'dashboard';
+  };
+
+  const currentView = getActiveView();
   const [historicalSessions, setHistoricalSessions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -51,7 +65,13 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
     onLogout();
   };
 
-  const renderView = () => {
+  const renderCurrentRouteView = () => {
+    // If we have children (from Routes in App.jsx), render them
+    if (children && location.pathname !== '/dashboard' && location.pathname !== '/history' && location.pathname !== '/profile') {
+      return children;
+    }
+
+    // Fallback/Legacy state-based rendering for specific paths
     switch (currentView) {
       case 'dashboard':
         return (
@@ -73,7 +93,15 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
       case 'profile':
         return <Profile user={user} />;
       default:
-        return <Dashboard user={user} sessions={historicalSessions} wsConnected={wsConnected} />;
+        return (
+          <Dashboard 
+            user={user} 
+            sessions={historicalSessions} 
+            onRefresh={fetchSessions}
+            isLoading={isLoading}
+            wsConnected={wsConnected} 
+          />
+        );
     }
   };
 
@@ -84,7 +112,7 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
+              <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => navigate('/dashboard')}>
                 <h1 className="text-2xl font-bold flex items-center gap-2 text-[#2dd4bf]">
                   <svg className="w-8 h-8 text-[#2dd4bf]" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M13 7H7v6h6V7z" />
@@ -95,7 +123,7 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 <button
-                  onClick={() => setCurrentView('dashboard')}
+                  onClick={() => navigate('/dashboard')}
                   className={`${currentView === 'dashboard'
                       ? 'border-[#2dd4bf] text-[#2dd4bf] font-semibold'
                       : 'border-transparent text-slate-400 hover:text-[#2dd4bf]'
@@ -104,7 +132,7 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
                   Dashboard
                 </button>
                 <button
-                  onClick={() => setCurrentView('history')}
+                  onClick={() => navigate('/history')}
                   className={`${currentView === 'history'
                       ? 'border-[#2dd4bf] text-[#2dd4bf] font-semibold'
                       : 'border-transparent text-slate-400 hover:text-[#2dd4bf]'
@@ -113,7 +141,19 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
                   Session History
                 </button>
                 <button
-                  onClick={() => setCurrentView('profile')}
+                  onClick={() => navigate('/games')}
+                  className={`${currentView === 'games'
+                      ? 'border-[#2dd4bf] text-[#2dd4bf] font-semibold'
+                      : 'border-transparent text-slate-400 hover:text-[#2dd4bf]'
+                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-all duration-300`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    Games
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  </span>
+                </button>
+                <button
+                  onClick={() => navigate('/profile')}
                   className={`${currentView === 'profile'
                       ? 'border-[#2dd4bf] text-[#2dd4bf] font-semibold'
                       : 'border-transparent text-slate-400 hover:text-[#2dd4bf]'
@@ -124,7 +164,7 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-slate-300">{user.email}</span>
+              <span className="text-sm font-medium text-slate-300 hidden md:inline">{user.email}</span>
               <button
                 onClick={handleLogout}
                 className="glass-button text-gray-200 px-6 py-2 rounded-lg text-sm font-semibold hover:text-red-400 border border-white/5"
@@ -137,10 +177,10 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
       </nav>
 
       {/* Mobile Navigation */}
-      <div className="sm:hidden bg-slate-800 border-b border-slate-700">
+      <div className="sm:hidden bg-[#0e161f] border-b border-white/5">
         <div className="px-2 pt-2 pb-3 space-y-1">
           <button
-            onClick={() => setCurrentView('dashboard')}
+            onClick={() => navigate('/dashboard')}
             className={`${currentView === 'dashboard'
                 ? 'bg-slate-700/50 border-[#2dd4bf] text-[#2dd4bf]'
                 : 'border-transparent text-gray-400 hover:bg-slate-700/30 hover:text-[#2dd4bf]'
@@ -149,7 +189,7 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
             Dashboard
           </button>
           <button
-            onClick={() => setCurrentView('history')}
+            onClick={() => navigate('/history')}
             className={`${currentView === 'history'
                 ? 'bg-slate-700/50 border-[#2dd4bf] text-[#2dd4bf]'
                 : 'border-transparent text-gray-400 hover:bg-slate-700/30 hover:text-[#2dd4bf]'
@@ -158,7 +198,16 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
             Session History
           </button>
           <button
-            onClick={() => setCurrentView('profile')}
+            onClick={() => navigate('/games')}
+            className={`${currentView === 'games'
+                ? 'bg-slate-700/50 border-[#2dd4bf] text-[#2dd4bf]'
+                : 'border-transparent text-gray-400 hover:bg-slate-700/30 hover:text-[#2dd4bf]'
+              } block pl-3 pr-4 py-2 border-l-4 text-base font-medium w-full text-left transition-colors duration-200`}
+          >
+            Games
+          </button>
+          <button
+            onClick={() => navigate('/profile')}
             className={`${currentView === 'profile'
                 ? 'bg-slate-700/50 border-[#2dd4bf] text-[#2dd4bf]'
                 : 'border-transparent text-gray-400 hover:bg-slate-700/30 hover:text-[#2dd4bf]'
@@ -176,10 +225,11 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
             {error}
           </div>
         )}
-        {renderView()}
+        {renderCurrentRouteView()}
       </main>
     </div>
   );
 }
 
 export default DashboardLayout;
+

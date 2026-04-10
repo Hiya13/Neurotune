@@ -28,6 +28,10 @@ A real-time neurofeedback platform for attention monitoring and enhancement usin
 - **Session History**: Browse and analyze past sessions
 - **JWT Authentication**: Secure user accounts with bcrypt password hashing
 
+### Tide Controller (attention game)
+- **Full-screen coastal neurofeedback game** driven by a dedicated WebSocket attention score (`ws://localhost:8080` by default), with **demo mode** when no server is available.
+- **Documentation:** [docs/TIDE_CONTROLLER.md](docs/TIDE_CONTROLLER.md) — demo vs production, protocol, artifacts, saving sessions, troubleshooting.
+
 ## 📋 Tech Stack
 
 ### Frontend
