@@ -87,6 +87,19 @@ class WebSocketService {
         console.log('WebSocket authenticated successfully');
         this.emit('authenticated', data);
         break;
+
+      case 'RUNTIME_STATUS':
+        this.emit('runtime_status', data);
+        break;
+
+      case 'COMMAND_ACK':
+        this.emit('command_ack', data);
+        break;
+
+      case 'COMMAND_ERROR':
+        console.error('Command error:', data.message || data.code || 'unknown');
+        this.emit('command_error', data);
+        break;
       
       case 'AUTH_ERROR':
         console.error('WebSocket authentication failed:', data.message);
