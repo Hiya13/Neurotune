@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import authService from '../services/authService';
 import Dashboard from './Dashboard';
 import SessionHistory from './SessionHistory';
@@ -10,7 +10,7 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     setIsLoading(true);
     setError('');
 
@@ -35,7 +35,7 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -45,7 +45,7 @@ function DashboardLayout({ user, onLogout, wsConnected }) {
       const interval = setInterval(fetchSessions, 30000);
       return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, fetchSessions]);
 
   const handleLogout = () => {
     onLogout();

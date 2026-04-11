@@ -198,6 +198,24 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
     );
   };
 
+  const AudioLevelBar = ({ label, value, color }) => {
+    const pct = Math.max(0, Math.min(100, (value || 0) * 100));
+    return (
+      <div className="mb-3">
+        <div className="flex justify-between mb-1 text-xs">
+          <span className="text-gray-300 font-semibold">{label}</span>
+          <span className="text-gray-200">{pct.toFixed(0)}%</span>
+        </div>
+        <div className="w-full bg-slate-900/70 h-2 rounded-full overflow-hidden border border-slate-700/60">
+          <div
+            className="h-2 rounded-full transition-all duration-300"
+            style={{ width: `${pct}%`, backgroundColor: color }}
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Status Banner */}
@@ -237,6 +255,35 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
             ? `⏱️ Last update: ${new Date(liveMetrics.timestamp).toLocaleTimeString()}`
             : '⌛ Waiting for data...'}
         </p>
+      </div>
+
+      {/* Session Phase + Baseline + Action Levels */}
+      <div className="glass-effect rounded-2xl shadow-2xl p-8 border-2 border-white/50">
+        <h3 className="text-2xl font-bold gradient-text mb-6">Closed-Loop Session State</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="rounded-xl bg-slate-800/70 border border-slate-700 p-4">
+            <p className="text-xs text-gray-400 uppercase tracking-wide">Session Phase</p>
+            <p className="text-lg font-bold text-white mt-1">{liveMetrics.sessionPhase || 'IDLE'}</p>
+          </div>
+          <div className="rounded-xl bg-slate-800/70 border border-slate-700 p-4">
+            <p className="text-xs text-gray-400 uppercase tracking-wide">Baseline Focus</p>
+            <p className="text-lg font-bold text-orange-300 mt-1">{(liveMetrics.baselineFocus || 0).toFixed(1)}</p>
+          </div>
+          <div className="rounded-xl bg-slate-800/70 border border-slate-700 p-4">
+            <p className="text-xs text-gray-400 uppercase tracking-wide">Current Focus</p>
+            <p className={`text-lg font-bold mt-1 ${getScoreColor(liveMetrics.attentionScore || 0)}`}>
+              {(liveMetrics.attentionScore || 0).toFixed(1)}
+            </p>
+          </div>
+        </div>
+
+        <h4 className="text-sm font-bold text-gray-200 mb-3">Adaptive Sound Action Levels</h4>
+        <AudioLevelBar label="Binaural" value={liveMetrics.audioLevels?.binaural} color="#38bdf8" />
+        <AudioLevelBar label="Pulse" value={liveMetrics.audioLevels?.pulse} color="#f59e0b" />
+        <AudioLevelBar label="Rain" value={liveMetrics.audioLevels?.rain} color="#22c55e" />
+        <AudioLevelBar label="Drone" value={liveMetrics.audioLevels?.drone} color="#a855f7" />
+        <AudioLevelBar label="Noise" value={liveMetrics.audioLevels?.noise} color="#94a3b8" />
       </div>
 
       {/* Brain Wave Powers */}

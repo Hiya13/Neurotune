@@ -29,6 +29,7 @@ venv/
 env/
 .venv/
 __pycache__/
+python_eeg_pipeline/user_models/
 *.py[cod]
 *$py.class
 *.so
