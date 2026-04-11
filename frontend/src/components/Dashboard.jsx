@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import websocketService from '../services/websocketService';
 import authService from '../services/authService';
 import LoggingForm from './LoggingForm';
@@ -6,8 +6,18 @@ import ScoreTrendChart from './ScoreTrendChart';
 import LatestSessionDetails from './LatestSessionDetails';
 import LiveEEGMonitor from './LiveEEGMonitor';
 import SessionControls from './SessionControls';
+import BrowserSoundEngine from '../audio/browserSoundEngine';
+
+const ZERO_AUDIO_LEVELS = { binaural: 0, pulse: 0, rain: 0, drone: 0, noise: 0 };
 
 function Dashboard({ user, sessions, onRefresh, isLoading, wsConnected }) {
+  const browserSoundRef = useRef(null);
+  const onRefreshRef = useRef(onRefresh);
+
+  if (!browserSoundRef.current) {
+    browserSoundRef.current = new BrowserSoundEngine();
+  }
+
   const [stats, setStats] = useState({
     totalSessions: 0,
     avgAttentionScore: 0,
@@ -22,12 +32,16 @@ function Dashboard({ user, sessions, onRefresh, isLoading, wsConnected }) {
     theta: 0,
     delta: 0,
     gamma: 0,
+    sessionPhase: 'IDLE',
+    baselineFocus: 0,
+    audioLevels: ZERO_AUDIO_LEVELS,
     isSoundActive: false,
     timestamp: null
   });
 
   const [sessionActive, setSessionActive] = useState(false);
   const [viewMode, setViewMode] = useState('live'); // 'live' or 'manual'
+  const [runtimeReady, setRuntimeReady] = useState(false);
 
   useEffect(() => {
     if (sessions && sessions.length > 0) {
@@ -42,8 +56,19 @@ function Dashboard({ user, sessions, onRefresh, isLoading, wsConnected }) {
   }, [sessions]);
 
   useEffect(() => {
+    onRefreshRef.current = onRefresh;
+  }, [onRefresh]);
+
+  useEffect(() => {
     // Listen for real-time EEG data
     const handleEEGData = (data) => {
+      const audioLevels = data.audioLevels || ZERO_AUDIO_LEVELS;
+      const isSoundActive = Boolean(data.isSoundActive);
+
+      if (browserSoundRef.current?.started) {
+        browserSoundRef.current.updateParams(isSoundActive ? audioLevels : ZERO_AUDIO_LEVELS);
+      }
+
       setLiveMetrics({
         attentionScore: data.attentionScore || 0,
         alpha: data.alpha || 0,
@@ -51,7 +76,10 @@ function Dashboard({ user, sessions, onRefresh, isLoading, wsConnected }) {
         theta: data.theta || 0,
         delta: data.delta || 0,
         gamma: data.gamma || 0,
-        isSoundActive: data.isSoundActive || false,
+        sessionPhase: data.sessionPhase || 'IDLE',
+        baselineFocus: data.baselineFocus || 0,
+        audioLevels,
+        isSoundActive,
         timestamp: data.timestamp
       });
     };
@@ -66,38 +94,91 @@ function Dashboard({ user, sessions, onRefresh, isLoading, wsConnected }) {
         theta: 0,
         delta: 0,
         gamma: 0,
+        sessionPhase: 'IDLE',
+        baselineFocus: 0,
+        audioLevels: ZERO_AUDIO_LEVELS,
         isSoundActive: false,
         timestamp: null
       });
 
+      if (browserSoundRef.current?.started) {
+        void browserSoundRef.current.stop();
+      }
       // Refresh session list
-      if (onRefresh) {
-        onRefresh();
+      if (onRefreshRef.current) {
+        onRefreshRef.current();
       }
 
       alert('Session completed and saved successfully!');
     };
 
+    const handleRuntimeStatus = (data) => {
+      setRuntimeReady(Boolean(data.isAvailable));
+    };
+
+    const handleCommandError = (data) => {
+      if (data?.code === 'RUNTIME_UNAVAILABLE') {
+        setSessionActive(false);
+        setRuntimeReady(false);
+        if (browserSoundRef.current?.started) {
+          void browserSoundRef.current.stop();
+        }
+        alert('Python runtime is not connected. Start python_eeg_pipeline first.');
+      }
+    };
+
     websocketService.on('eeg_data', handleEEGData);
     websocketService.on('session_complete', handleSessionComplete);
+    websocketService.on('runtime_status', handleRuntimeStatus);
+    websocketService.on('command_error', handleCommandError);
 
     return () => {
+      if (browserSoundRef.current?.started) {
+        void browserSoundRef.current.stop();
+      }
+
       websocketService.off('eeg_data', handleEEGData);
       websocketService.off('session_complete', handleSessionComplete);
+      websocketService.off('runtime_status', handleRuntimeStatus);
+      websocketService.off('command_error', handleCommandError);
     };
-  }, [onRefresh]);
+  }, []);
 
   const handleStartSession = async (config) => {
+    if (!runtimeReady) {
+      alert('Python runtime is offline. Start the EEG pipeline and retry.');
+      return;
+    }
+
+    if (config?.interventionType === 'auditory' || config?.interventionType === 'multi-modal') {
+      try {
+        await browserSoundRef.current.start();
+        browserSoundRef.current.setMasterVolume((config.soundVolume || 50) / 100);
+      } catch (error) {
+        console.warn('Browser audio start failed:', error);
+      }
+    } else if (browserSoundRef.current?.started) {
+      browserSoundRef.current.updateParams(ZERO_AUDIO_LEVELS);
+    }
+
     const success = websocketService.startSession(user.id, config);
     if (success) {
       setSessionActive(true);
       console.log('Session started with config:', config);
     } else {
+      if (browserSoundRef.current?.started) {
+        void browserSoundRef.current.stop();
+      }
       alert('Failed to start session. Please check WebSocket connection.');
     }
   };
 
   const handleStopSession = async () => {
+    if (browserSoundRef.current?.started) {
+      browserSoundRef.current.updateParams(ZERO_AUDIO_LEVELS);
+      void browserSoundRef.current.stop();
+    }
+
     const success = websocketService.stopSession(user.id);
     if (success) {
       console.log('Stop session command sent');
@@ -184,6 +265,7 @@ function Dashboard({ user, sessions, onRefresh, isLoading, wsConnected }) {
               onStopSession={handleStopSession}
               sessionActive={sessionActive}
               wsConnected={wsConnected}
+              runtimeReady={runtimeReady}
             />
           </div>
 

@@ -5,8 +5,10 @@
   "main": "index.js",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "dev:full": "concurrently \"npm run server\" \"npm run client\" \"npm run python\"",
     "server": "cd backend && npm run dev",
     "client": "cd frontend && npm run dev",
+    "python": "cd python_eeg_pipeline && .\\venv\\Scripts\\python.exe eeg_neurofeedback.py",
     "install-all": "npm install && cd frontend && npm install && cd ../backend && npm install"
   },
   "keywords": ["eeg", "attention", "monitoring", "react", "mongodb", "firebase"],

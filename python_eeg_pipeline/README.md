@@ -10,6 +10,11 @@ This directory contains the Python pipeline for real-time EEG data processing an
 - Binaural beat generation for neurofeedback
 - WebSocket communication with Node.js backend
 - Automatic session data logging to MongoDB
+- Integrated closed-loop core module (`neurotune_core.py`) with:
+    - Brain-state simulation (`flow` / `distracted` dynamics)
+    - Session state machine (IDLE -> BASELINE -> ACTIVE -> ENDED)
+    - RL action bridge (PPO if available, heuristic fallback otherwise)
+    - 5-channel adaptive audio action mapping
 
 ## Requirements
 
@@ -35,12 +40,21 @@ pip install -r requirements.txt
 
 ## Configuration
 
-1. Open `eeg_neurofeedback.py`
-2. Update the configuration at the bottom:
-   - `USER_ID`: Your user ID from the web application
-   - `API_KEY`: Python API key from backend `.env` file
-   - `WS_URL`: WebSocket server URL (default: ws://localhost:5000/eeg-stream)
-   - `API_URL`: REST API URL (default: http://localhost:5000/api)
+Use environment variables (recommended):
+
+- `NEUROTUNE_USER_ID`: your web app user id for websocket routing.
+- `PYTHON_API_KEY`: should match backend `.env` `PYTHON_API_KEY`.
+- `NEUROTUNE_WS_URL`: websocket URL (default: `ws://localhost:5000/eeg-stream`).
+- `NEUROTUNE_API_URL`: REST API URL (default: `http://localhost:5000/api`).
+
+Optional environment variable:
+- `NEUROTUNE_PPO_MODEL_PATH`: path to a Stable-Baselines3 PPO model zip.
+    If missing/unavailable, runtime automatically uses heuristic action fallback.
+- `NEUROTUNE_ENABLE_ONLINE_TRAINING`: `1`/`0` toggle for session-end model updates (default: `1`).
+- `NEUROTUNE_ONLINE_TRAIN_STEPS`: PPO replay fine-tune steps after each session (default: `768`).
+
+By default, models are persisted per user in `python_eeg_pipeline/user_models/<user_id>_ppo_model(.zip)`
+and automatically loaded on the user's next session.
 
 ## Usage
 
@@ -95,10 +109,11 @@ def read_eeg_data(self):
 
 ## Attention Score Formula
 
-The attention score is calculated using:
+The integrated core currently uses a weighted beta-ratio formula:
 
 ```
-Attention Score = [(Beta + Alpha) / (Theta + Delta)] × 10
+raw = 0.55*(Beta/Theta) + 0.30*(Beta/Alpha) + 0.15*(Beta/(Alpha+Theta))
+Attention Score = clip(raw * 20, 0, 100)
 ```
 
 Normalized to 0-100 scale where:
