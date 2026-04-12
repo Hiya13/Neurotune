@@ -204,43 +204,7 @@ class EEGNeurofeedbackPipeline:
         
         return attention_score
     
-    def generate_binaural_beat(self, attention_score):
-        """
-        Generate therapeutic sound based on attention score.
-        Lower attention = more stimulating frequency
-        Higher attention = calming frequency
-        """
-        if not self.is_sound_active:
-            return
-        
-        # Base frequency (carrier)
-        base_freq = 200  # Hz
-        
-        # Binaural beat frequency (difference between ears)
-        # Low attention: higher beat frequency (more alert - beta range)
-        # High attention: lower beat frequency (maintain focus - alpha range)
-        if attention_score < 50:
-            beat_freq = 20  # Beta (alertness)
-        elif attention_score < 75:
-            beat_freq = 10  # Alpha (focused relaxation)
-        else:
-            beat_freq = 6   # Theta (deep focus)
-        
-        # Generate stereo signal
-        duration = 0.2  # 200ms
-        t = np.linspace(0, duration, int(self.sample_rate * duration))
-        
-        # Left ear
-        left = np.sin(2 * np.pi * base_freq * t)
-        # Right ear (with binaural difference)
-        right = np.sin(2 * np.pi * (base_freq + beat_freq) * t)
-        
-        # Combine stereo and apply volume
-        volume = self.sound_volume / 100.0
-        stereo_signal = np.column_stack((left, right)) * volume * 0.3
-        
-        # Play sound
-        sd.play(stereo_signal, self.sample_rate, blocking=False)
+
 
     def stream_eeg_loop(self):
         """Main loop for reading EEG and streaming data"""
@@ -545,11 +509,29 @@ class EEGNeurofeedbackPipeline:
 
 
 if __name__ == '__main__':
+    print("="*50)
+    print("Starting EEG Neuropipeline Host...")
+    print("="*50)
+
     # Configuration
-    USER_ID = os.getenv('NEUROTUNE_USER_ID', '69bd59af185646c56d5076e1')
-    API_KEY = os.getenv('PYTHON_API_KEY', 'neurotune_python_key_12345')
+    API_KEY = os.getenv('PYTHON_API_KEY', 'your_python_api_key_change_this')
     WS_URL = os.getenv('NEUROTUNE_WS_URL', 'ws://localhost:5000/eeg-stream')
     API_URL = os.getenv('NEUROTUNE_API_URL', 'http://localhost:5000/api')
+    
+    # Dynamically fetch user ID via HTTP Polling
+    print("\nWaiting for a user to log in on the React frontend dashboard...")
+    USER_ID = None
+    while not USER_ID:
+        try:
+            response = requests.get(f"{API_URL}/auth/active-local-user")
+            if response.status_code == 200 and response.json().get('userId'):
+                USER_ID = response.json().get('userId')
+                break
+        except Exception:
+            pass
+        time.sleep(2)
+        
+    print(f"\n✓ User {USER_ID} logged in automatically! Booting pipeline parameters...\n")
     
     # Create and run pipeline
     pipeline = EEGNeurofeedbackPipeline(
