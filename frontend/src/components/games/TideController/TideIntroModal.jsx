@@ -1,6 +1,7 @@
 import React from 'react';
+import DemoProfileSelector from '../shared/DemoProfileSelector';
 
-const TideIntroModal = ({ onStart }) => {
+const TideIntroModal = ({ onStart, isDemo, simulatorProfile, onProfileSelect }) => {
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
       {/* Backdrop */}
@@ -89,6 +90,15 @@ const TideIntroModal = ({ onStart }) => {
               <span>Deep focus (100)</span>
             </div>
           </div>
+
+          {/* DEMO PROFILE SELECTOR */}
+          {isDemo && (
+            <DemoProfileSelector
+              selected={simulatorProfile}
+              onSelect={onProfileSelect}
+              accentColor="#5dcaa5"
+            />
+          )}
         </div>
 
         {/* FOOTER */}

@@ -1,6 +1,7 @@
 import React from 'react';
+import DemoProfileSelector from '../shared/DemoProfileSelector';
 
-const MindGardenIntroModal = ({ onStart }) => {
+const MindGardenIntroModal = ({ onStart, isDemo, simulatorProfile, onProfileSelect }) => {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-500">
       <div className="w-full max-w-[460px] bg-[#0e2008] border border-[#3b6d11]/30 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500 delay-100">
@@ -74,6 +75,15 @@ const MindGardenIntroModal = ({ onStart }) => {
               <div className="h-full w-full bg-gradient-to-r from-emerald-900 to-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]" />
             </div>
           </div>
+
+          {/* DEMO PROFILE SELECTOR */}
+          {isDemo && (
+            <DemoProfileSelector
+              selected={simulatorProfile}
+              onSelect={onProfileSelect}
+              accentColor="#3b6d11"
+            />
+          )}
         </div>
 
         {/* FOOTER */}

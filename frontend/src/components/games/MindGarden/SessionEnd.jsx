@@ -16,7 +16,13 @@ const SessionEnd = ({ scoreHistory, plantStages, sessionDurationMs, onPlayAgain,
   const bloomedCount = plantStages.filter(s => s >= 5).length;
   const allBloomed = bloomedCount === 8;
 
+  const [saving, setSaving] = React.useState(false);
+  const [saveStatus, setSaveStatus] = React.useState(null); // 'success' | 'error' | null
+
   const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    setSaveStatus(null);
     try {
       const token = authService.getToken();
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/sessions`, {
@@ -38,17 +44,24 @@ const SessionEnd = ({ scoreHistory, plantStages, sessionDurationMs, onPlayAgain,
             game: 'MindGarden', 
             plantsFullyBloomed: bloomedCount, 
             plantStages,
-            scoreHistorySample: scoreHistory.filter((_, i) => i % 5 === 0) // Subsample for storage
+            scoreHistorySample: scoreHistory.filter((_, i) => i % 5 === 0)
           }
         })
       });
 
       if (response.ok) {
-        alert('Session saved successfully!');
-        onExit();
+        setSaveStatus('success');
+        setTimeout(() => {
+          onExit();
+        }, 1500);
+      } else {
+        setSaveStatus('error');
       }
     } catch (err) {
       console.error('Error saving session:', err);
+      setSaveStatus('error');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -110,20 +123,35 @@ const SessionEnd = ({ scoreHistory, plantStages, sessionDurationMs, onPlayAgain,
           <div className="space-y-3">
              <button 
                onClick={handleSave}
-               className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/20"
+               disabled={saving || saveStatus === 'success'}
+               className={`w-full py-4 rounded-2xl font-bold text-sm transition-all shadow-lg ${
+                 saveStatus === 'success' ? 'bg-emerald-800 text-emerald-200 cursor-default' : 
+                 saveStatus === 'error' ? 'bg-rose-600 hover:bg-rose-500 text-white' :
+                 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20'
+               } ${saving ? 'opacity-70 cursor-wait' : ''}`}
              >
-               Save Session & Exit
+               {saving ? 'Saving...' : saveStatus === 'success' ? 'Saved ✓' : saveStatus === 'error' ? 'Retry Save' : 'Save Session & Exit'}
              </button>
-             <div className="flex gap-3">
+             
+             {saveStatus === 'error' && (
+               <p className="text-rose-400 text-[10px] text-center font-bold uppercase tracking-tight">Save failed. Please check connection.</p>
+             )}
+             {saveStatus === 'success' && (
+               <p className="text-emerald-400 text-[10px] text-center font-bold uppercase tracking-tight">Redirecting to gallery...</p>
+             )}
+
+             <div className="flex gap-3 mt-2">
                 <button 
                   onClick={onPlayAgain}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-slate-300 rounded-2xl font-semibold text-sm transition-all"
+                  disabled={saving}
+                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-slate-300 rounded-2xl font-semibold text-sm transition-all disabled:opacity-50"
                 >
                   Play Again
                 </button>
                 <button 
                   onClick={onExit}
-                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-slate-300 rounded-2xl font-semibold text-sm transition-all"
+                  disabled={saving}
+                  className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-slate-300 rounded-2xl font-semibold text-sm transition-all disabled:opacity-50"
                 >
                   Discard
                 </button>

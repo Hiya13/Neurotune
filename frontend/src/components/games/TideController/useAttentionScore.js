@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createSimulator } from '../../../utils/eegSimulator';
 
 const DEFAULT_WS_URL = 'ws://localhost:8080';
 const RECONNECT_MS = 3000;
@@ -18,22 +19,38 @@ function clampDelta(prev, next) {
 
 /**
  * Streams attentionScore (+ optional bandPowers) from a dedicated game WebSocket.
- * Falls back to sine simulation when no server; freezes last score while reconnecting after a live drop.
+ * Falls back to realistic EEG simulation when no server is available.
+ *
+ * @param {string} [wsUrl]              — WebSocket URL
+ * @param {string} [simulatorProfile]   — one of PROFILES values for demo mode
  */
-export function useAttentionScore(wsUrl = DEFAULT_WS_URL) {
-  const [rawScore, setRawScore] = useState(0);
-  const [bandPowers, setBandPowers] = useState(null);
+export function useAttentionScore(wsUrl = DEFAULT_WS_URL, simulatorProfile) {
+  const [rawScore, setRawScore]             = useState(0);
+  const [bandPowers, setBandPowers]         = useState(null);
   const [connectionState, setConnectionState] = useState('connecting');
+  const [simPhase, setSimPhase]             = useState(null);
+  const [simProfileName, setSimProfileName] = useState(null);
 
-  const wsRef = useRef(null);
-  const reconnectTimerRef = useRef(null);
-  const simRafRef = useRef(null);
-  const lastClampedRef = useRef(0);
-  const mountedRef = useRef(true);
-  const hadLiveDataRef = useRef(false);
-  const wsUrlRef = useRef(wsUrl);
+  const wsRef              = useRef(null);
+  const reconnectTimerRef  = useRef(null);
+  const simRafRef          = useRef(null);
+  const simRef             = useRef(null);
+  const lastClampedRef     = useRef(0);
+  const mountedRef         = useRef(true);
+  const hadLiveDataRef     = useRef(false);
+  const wsUrlRef           = useRef(wsUrl);
+  const lastFrameTimeRef   = useRef(null);
 
   wsUrlRef.current = wsUrl;
+
+  // Sync simulator profile changes
+  useEffect(() => {
+    if (simRef.current && simulatorProfile) {
+      simRef.current.setProfile(simulatorProfile);
+      const state = simRef.current.getState();
+      setSimProfileName(state.profileName);
+    }
+  }, [simulatorProfile]);
 
   const clearReconnect = useCallback(() => {
     if (reconnectTimerRef.current) {
@@ -47,6 +64,7 @@ export function useAttentionScore(wsUrl = DEFAULT_WS_URL) {
       cancelAnimationFrame(simRafRef.current);
       simRafRef.current = null;
     }
+    lastFrameTimeRef.current = null;
   }, []);
 
   const applyIncomingScore = useCallback((value) => {
@@ -58,20 +76,47 @@ export function useAttentionScore(wsUrl = DEFAULT_WS_URL) {
 
   const startSimulation = useCallback(() => {
     stopSimulation();
-    const loop = (t) => {
-      const phase = t * 0.00035;
-      const wave =
-        50 +
-        38 * Math.sin(phase) +
-        12 * Math.sin(phase * 2.3 + 1.2);
-      const next = clampScore(wave);
-      const clamped = clampDelta(lastClampedRef.current, next);
+
+    // Create or reconfigure simulator
+    if (!simRef.current) {
+      simRef.current = createSimulator(simulatorProfile || undefined);
+    } else if (simulatorProfile) {
+      simRef.current.setProfile(simulatorProfile);
+    }
+
+    const state = simRef.current.getState();
+    setSimProfileName(state.profileName);
+
+    lastFrameTimeRef.current = null;
+
+    const loop = (timestamp) => {
+      if (!mountedRef.current) return;
+
+      // Calculate delta time
+      if (lastFrameTimeRef.current == null) {
+        lastFrameTimeRef.current = timestamp;
+      }
+      const dt = Math.min((timestamp - lastFrameTimeRef.current) / 1000, 0.1);
+      lastFrameTimeRef.current = timestamp;
+
+      // Tick the simulator
+      const result = simRef.current.tick(dt);
+
+      // Apply ±5 clamp (double smoothing — intentional and realistic)
+      const clamped = clampDelta(lastClampedRef.current, result.attentionScore);
       lastClampedRef.current = clamped;
-      if (mountedRef.current) setRawScore(clamped);
+
+      if (mountedRef.current) {
+        setRawScore(clamped);
+        setBandPowers(result.bandPowers);
+        setSimPhase(result.phase);
+      }
+
       simRafRef.current = requestAnimationFrame(loop);
     };
+
     simRafRef.current = requestAnimationFrame(loop);
-  }, [stopSimulation]);
+  }, [stopSimulation, simulatorProfile]);
 
   const connectSocket = useCallback(() => {
     const url = wsUrlRef.current;
@@ -112,6 +157,8 @@ export function useAttentionScore(wsUrl = DEFAULT_WS_URL) {
     socket.onopen = () => {
       stopSimulation();
       setConnectionState('live');
+      setSimPhase(null);
+      setSimProfileName(null);
     };
 
     socket.onmessage = (ev) => {
@@ -179,7 +226,9 @@ export function useAttentionScore(wsUrl = DEFAULT_WS_URL) {
     bandPowers,
     connectionState,
     isReconnecting: connectionState === 'reconnecting',
-    isSimulated: connectionState === 'simulated',
+    isSimulated:    connectionState === 'simulated',
+    phase:          connectionState === 'simulated' ? simPhase : null,
+    profileName:    connectionState === 'simulated' ? simProfileName : null,
   };
 }
 

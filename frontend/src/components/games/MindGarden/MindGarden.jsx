@@ -9,6 +9,7 @@ import PlantCard from './PlantCard';
 import SessionEnd from './SessionEnd';
 import useAmbientSound from './useAmbientSound';
 import { PLANTS } from './plants.jsx';
+import DemoBadge from '../shared/DemoBadge';
 
 const DEFAULT_SESSION_MS = 7 * 60 * 1000;
 const DEFAULT_WS = 'ws://localhost:8080';
@@ -18,7 +19,8 @@ export default function MindGarden({
   wsUrl = DEFAULT_WS,
   onExit,
 }) {
-  const { rawScore, connectionState, isSimulated, isReconnecting } = useAttentionScore(wsUrl);
+  const [simulatorProfile, setSimulatorProfile] = useState(null);
+  const { rawScore, connectionState, isSimulated, isReconnecting, phase: simPhase, profileName: simProfileName } = useAttentionScore(wsUrl, simulatorProfile);
   const smoothedScore = useRollingAverage(rawScore, 3000);
 
   const [tabVisible, setTabVisible] = useState(!document.hidden);
@@ -173,9 +175,12 @@ export default function MindGarden({
                     Reconnecting...
                   </div>
                 )}
-                <div className="text-[10px] px-3 py-1 bg-black/40 border border-white/10 rounded-full text-slate-400 font-bold tracking-widest uppercase">
-                  {isSimulated ? 'Demo Mode' : 'Live EEG'}
-                </div>
+                <DemoBadge isSimulated={isSimulated} phase={simPhase} profileName={simProfileName} />
+                {!isSimulated && (
+                  <div className="text-[10px] px-3 py-1 bg-black/40 border border-white/10 rounded-full text-slate-400 font-bold tracking-widest uppercase">
+                    Live EEG
+                  </div>
+                )}
              </div>
 
              <div className="flex items-center gap-2">
@@ -216,7 +221,14 @@ export default function MindGarden({
         </div>
 
         {/* MODALS / OVERLAYS */}
-        {modalOpen && <MindGardenIntroModal onStart={handleStart} />}
+        {modalOpen && (
+          <MindGardenIntroModal
+            onStart={handleStart}
+            isDemo={isSimulated}
+            simulatorProfile={simulatorProfile}
+            onProfileSelect={setSimulatorProfile}
+          />
+        )}
         
         {drawerOpen && (
           <GardenDrawer 

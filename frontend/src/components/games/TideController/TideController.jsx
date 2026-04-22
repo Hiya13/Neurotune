@@ -9,6 +9,7 @@ import FocusGauge from './FocusGauge.jsx';
 import ArtifactCard from './ArtifactCard.jsx';
 import SessionEnd from './SessionEnd.jsx';
 import TideIntroModal from './TideIntroModal.jsx';
+import DemoBadge from '../shared/DemoBadge';
 
 const DEFAULT_SESSION_MS = 5 * 60 * 1000;
 const DEFAULT_WS = 'ws://localhost:8080';
@@ -18,7 +19,8 @@ export default function TideController({
   wsUrl = DEFAULT_WS,
   onExit,
 }) {
-  const { rawScore, connectionState, isReconnecting, isSimulated } = useAttentionScore(wsUrl);
+  const [simulatorProfile, setSimulatorProfile] = useState(null);
+  const { rawScore, connectionState, isReconnecting, isSimulated, phase: simPhase, profileName: simProfileName } = useAttentionScore(wsUrl, simulatorProfile);
   const smoothedScore = useRollingAverage(rawScore, 3000);
 
   const [tabVisible, setTabVisible] = useState(
@@ -189,7 +191,14 @@ export default function TideController({
           <WaterLayer smoothedScore={smoothedScore} running={tabVisible && sessionActive && !modalOpen} />
         </svg>
 
-        {modalOpen && <TideIntroModal onStart={() => setModalOpen(false)} />}
+        {modalOpen && (
+          <TideIntroModal
+            onStart={() => setModalOpen(false)}
+            isDemo={isSimulated}
+            simulatorProfile={simulatorProfile}
+            onProfileSelect={setSimulatorProfile}
+          />
+        )}
 
         <div className="absolute top-0 left-0 right-0 flex justify-between items-start p-3 sm:p-4 pointer-events-none">
           <div className="pointer-events-auto glass-panel rounded-xl px-3 py-2 border border-white/10">
@@ -197,16 +206,7 @@ export default function TideController({
           </div>
 
           <div className="flex flex-col items-end gap-2 pointer-events-auto">
-            {isReconnecting && (
-              <div className="text-xs px-2 py-1 rounded-md bg-amber-900/50 text-amber-200 border border-amber-600/40">
-                Reconnecting…
-              </div>
-            )}
-            {isSimulated && connectionState === 'simulated' && (
-              <div className="text-xs px-2 py-1 rounded-md bg-slate-800/80 text-slate-300 border border-white/10">
-                Demo mode (simulated EEG)
-              </div>
-            )}
+            <DemoBadge isSimulated={isSimulated} phase={simPhase} profileName={simProfileName} />
             <div className="flex items-center gap-2">
               <div className="glass-panel rounded-lg px-3 py-2 border border-white/10 text-sm tabular-nums text-teal-100">
                 {timerLabel}
@@ -295,6 +295,7 @@ export default function TideController({
           averageFocus={avgFocus}
           sessionDurationMs={sessionDurationMs}
           onPlayAgain={handlePlayAgain}
+          onExit={onExit}
         />
       )}
     </div>

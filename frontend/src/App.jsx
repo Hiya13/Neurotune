@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import authService from './services/authService';
 import websocketService from './services/websocketService';
 import AuthView from './components/AuthView';
@@ -7,6 +7,41 @@ import DashboardLayout from './components/DashboardLayout';
 import GamesPage from './pages/GamesPage';
 import TideController from './components/games/TideController/TideController';
 import MindGarden from './components/games/MindGarden/MindGarden';
+import FocusFlight from './components/games/FocusFlight/FocusFlight';
+
+function AppRoutes({ user, onLogout, wsConnected }) {
+  const navigate = useNavigate();
+  const handleExit = () => navigate('/games');
+
+  return (
+    <DashboardLayout
+      user={user}
+      onLogout={onLogout}
+      wsConnected={wsConnected}
+    >
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={null} />
+        <Route path="/history" element={null} />
+        <Route path="/profile" element={null} />
+        <Route path="/games" element={<GamesPage wsConnected={wsConnected} />} />
+        <Route path="/games/tide-controller" element={<TideController onExit={handleExit} />} />
+        <Route path="/games/mind-garden" element={
+          <MindGarden 
+            wsUrl={import.meta.env.VITE_TIDE_WS_URL || 'ws://localhost:8080/'} 
+            onExit={handleExit} 
+          />
+        } />
+        <Route path="/games/focus-flight" element={
+          <FocusFlight 
+            wsUrl={import.meta.env.VITE_TIDE_WS_URL || 'ws://localhost:8080/'} 
+            onExit={handleExit} 
+          />
+        } />
+      </Routes>
+    </DashboardLayout>
+  );
+}
 
 function App() {
   const [user, setUser] = useState(null);
@@ -103,26 +138,11 @@ function App() {
     <Router>
       <div className="dark min-h-screen bg-[#0a1218] text-white">
         {user ? (
-          <DashboardLayout
-            user={user}
-            onLogout={handleLogout}
-            wsConnected={wsConnected}
-          >
-            <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={null} /> {/* Handled by DashboardLayout logic for now or refactored later */}
-              <Route path="/history" element={null} />
-              <Route path="/profile" element={null} />
-              <Route path="/games" element={<GamesPage wsConnected={wsConnected} />} />
-              <Route path="/games/tide-controller" element={<TideController onExit={() => window.location.href = '/games'} />} />
-              <Route path="/games/mind-garden" element={
-                <MindGarden 
-                  wsUrl={import.meta.env.VITE_TIDE_WS_URL || 'ws://localhost:8080'} 
-                  onExit={() => window.location.href = '/games'} 
-                />
-              } />
-            </Routes>
-          </DashboardLayout>
+          <AppRoutes 
+            user={user} 
+            onLogout={handleLogout} 
+            wsConnected={wsConnected} 
+          />
         ) : (
           <AuthView onLogin={handleLogin} />
         )}
@@ -132,4 +152,3 @@ function App() {
 }
 
 export default App;
-

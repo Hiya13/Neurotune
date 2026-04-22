@@ -15,6 +15,14 @@ const ICONS = {
       <path d="M16 28V12" />
     </svg>
   ),
+  balloon: (
+    <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="16" cy="12" rx="8" ry="10" />
+      <line x1="10" y1="20" x2="12" y2="24" />
+      <line x1="22" y1="20" x2="20" y2="24" />
+      <rect x="11" y="24" width="10" height="4" rx="1" />
+    </svg>
+  ),
   signal: (
     <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M16 26a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />

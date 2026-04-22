@@ -23,8 +23,8 @@ export default function SessionEnd({
   artifactsFound,
   averageFocus,
   sessionDurationMs,
-  onSaveSuccess,
   onPlayAgain,
+  onExit,
 }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -75,7 +75,9 @@ export default function SessionEnd({
       }
 
       setSaved(true);
-      onSaveSuccess?.();
+      setTimeout(() => {
+        onExit?.();
+      }, 1500);
     } catch (e) {
       setSaveError(e.message || 'Save failed');
     } finally {
@@ -141,22 +143,40 @@ export default function SessionEnd({
           <p className="text-emerald-400 text-sm mb-4">Session saved to Neurotune.</p>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col gap-3">
           <button
             type="button"
             disabled={saving || saved}
             onClick={handleSave}
-            className="flex-1 py-3 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:opacity-45 text-white font-medium transition-colors"
+            className={`w-full py-4 rounded-xl text-white font-bold transition-all ${
+              saved ? 'bg-teal-800' : 'bg-teal-600 hover:bg-teal-500'
+            } ${saving ? 'opacity-70' : ''}`}
           >
-            {saving ? 'Saving…' : saved ? 'Saved' : 'Save Session'}
+            {saving ? 'Saving...' : saved ? 'Session Saved ✓' : 'Save Session & Exit'}
           </button>
-          <button
-            type="button"
-            onClick={onPlayAgain}
-            className="flex-1 py-3 rounded-xl border border-slate-600 hover:bg-slate-800 text-slate-200 font-medium transition-colors"
-          >
-            Play Again
-          </button>
+          
+          {saved && (
+             <p className="text-teal-400 text-[10px] uppercase font-bold tracking-tight">Redirecting to shore...</p>
+          )}
+
+          <div className="flex gap-3 mt-1">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={onPlayAgain}
+              className="flex-1 py-3 rounded-xl border border-slate-600 hover:bg-slate-800 text-slate-200 font-medium transition-colors disabled:opacity-50"
+            >
+              Play Again
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={onExit}
+              className="flex-1 py-3 rounded-xl border border-slate-600 hover:bg-slate-800 text-slate-200 font-medium transition-colors disabled:opacity-50"
+            >
+              Discard
+            </button>
+          </div>
         </div>
       </div>
     </div>

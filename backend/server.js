@@ -3,11 +3,13 @@ import { createServer } from 'http';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import dns from 'dns';
 import authRoutes from './routes/auth.js';
 import sessionRoutes from './routes/sessions.js';
 import EEGWebSocketServer from './websocket/websocketServer.js';
 
 dotenv.config();
+dns.setDefaultResultOrder('ipv4first');
 
 const app = express();
 const httpServer = createServer(app);

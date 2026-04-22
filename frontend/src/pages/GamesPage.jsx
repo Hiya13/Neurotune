@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import GameCard from '../components/games/GameCard';
 
 const GAMES = [
@@ -27,6 +27,18 @@ const GAMES = [
     path: '/games/mind-garden',
   },
   {
+    id: 'focus-flight',
+    title: 'Focus Flight',
+    description: 'A calming endless ascent — your EEG attention score lifts a hot-air balloon through layered skies into the stratosphere.',
+    duration: '6 min',
+    difficulty: 'Easy',
+    tags: ['Calm', 'Attention'],
+    status: 'available',
+    gradient: 'amber',
+    icon: 'balloon',
+    path: '/games/focus-flight',
+  },
+  {
     id: 'signal-hunter',
     title: 'The Signal Hunter',
     description: 'Tune into deep space. Your attention is the antenna — decode a hidden transmission through pure focus.',
@@ -41,6 +53,9 @@ const GAMES = [
 ];
 
 const GamesPage = ({ wsConnected }) => {
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const isDemo = !wsConnected;
+
   return (
     <div className="space-y-10 pb-12">
       {/* HEADER SECTION */}
@@ -59,6 +74,34 @@ const GamesPage = ({ wsConnected }) => {
           </span>
         </div>
       </div>
+
+      {/* DEMO BANNER */}
+      {isDemo && !bannerDismissed && (
+        <div
+          className="flex items-start gap-4 p-[14px_18px] rounded-[10px] transition-all duration-300"
+          style={{
+            background: 'rgba(186,117,23,0.08)',
+            border: '0.5px solid rgba(186,117,23,0.3)',
+          }}
+        >
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse mt-1 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-semibold text-amber-200 mb-0.5">
+              Running in Demo Mode
+            </div>
+            <p className="text-[12px] text-slate-400 leading-relaxed">
+              No EEG device connected. All games use realistic simulated brain activity. 
+              Connect your Muse or OpenBCI headset to use live data.
+            </p>
+          </div>
+          <button
+            onClick={() => setBannerDismissed(true)}
+            className="text-[12px] font-medium text-amber-400 hover:text-amber-300 whitespace-nowrap px-3 py-1 rounded-lg border border-amber-500/20 hover:bg-amber-500/10 transition-all flex-shrink-0"
+          >
+            Got it
+          </button>
+        </div>
+      )}
 
       {/* GAMES GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
