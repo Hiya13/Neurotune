@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
 import Dashboard from './Dashboard';
@@ -24,7 +24,7 @@ function DashboardLayout({ user, onLogout, wsConnected, children }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     setIsLoading(true);
     setError('');
 
@@ -49,7 +49,7 @@ function DashboardLayout({ user, onLogout, wsConnected, children }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -59,7 +59,7 @@ function DashboardLayout({ user, onLogout, wsConnected, children }) {
       const interval = setInterval(fetchSessions, 30000);
       return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, fetchSessions]);
 
   const handleLogout = () => {
     onLogout();

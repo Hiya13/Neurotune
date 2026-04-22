@@ -6,8 +6,31 @@ class EEGWebSocketServer {
     this.wss = new WebSocketServer({ server, path: '/eeg-stream' });
     this.clients = new Map(); // Map of userId -> Set of WebSocket connections
     this.pythonClients = new Set(); // Python EEG pipeline connections
+    this.pythonClientsByUser = new Map(); // userId -> python websocket
     
     this.initialize();
+  }
+
+  sendToClient(ws, payload) {
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify(payload));
+    }
+  }
+
+  notifyRuntimeStatus(userId, isAvailable) {
+    const userClients = this.clients.get(userId);
+    if (!userClients) return;
+
+    const payload = {
+      type: 'RUNTIME_STATUS',
+      userId,
+      isAvailable,
+      timestamp: new Date().toISOString()
+    };
+
+    userClients.forEach((client) => {
+      this.sendToClient(client, payload);
+    });
   }
 
   initialize() {
@@ -54,7 +77,7 @@ class EEGWebSocketServer {
 
       // Handle control commands from React (to Python)
       if (data.type === 'SOUND_CONTROL' || data.type === 'SESSION_CONTROL') {
-        this.relayToPython(data);
+        this.relayToPython(ws, data);
         return;
       }
 
@@ -86,18 +109,26 @@ class EEGWebSocketServer {
       }
       this.clients.get(ws.userId).add(ws);
 
-      ws.send(JSON.stringify({ 
+      this.sendToClient(ws, {
         type: 'AUTH_SUCCESS', 
         message: 'WebSocket authenticated',
-        userId: ws.userId
-      }));
+        userId: ws.userId,
+        runtimeAvailable: this.pythonClientsByUser.has(ws.userId)
+      });
+
+      this.sendToClient(ws, {
+        type: 'RUNTIME_STATUS',
+        userId: ws.userId,
+        isAvailable: this.pythonClientsByUser.has(ws.userId),
+        timestamp: new Date().toISOString()
+      });
 
       console.log(`React client authenticated: ${ws.userId}`);
     } catch (error) {
-      ws.send(JSON.stringify({ 
+      this.sendToClient(ws, {
         type: 'AUTH_ERROR', 
         message: 'Authentication failed' 
-      }));
+      });
       ws.close();
     }
   }
@@ -107,22 +138,46 @@ class EEGWebSocketServer {
     const pythonApiKey = data.apiKey;
     
     if (pythonApiKey === process.env.PYTHON_API_KEY) {
+      const userId = String(data.userId || '').trim();
+      if (!userId) {
+        this.sendToClient(ws, {
+          type: 'REGISTER_ERROR',
+          message: 'Missing userId during Python registration'
+        });
+        ws.close();
+        return;
+      }
+
+      // Ensure only one runtime client per user to avoid split-brain control loops.
+      const existing = this.pythonClientsByUser.get(userId);
+      if (existing && existing !== ws) {
+        this.sendToClient(existing, {
+          type: 'REGISTER_REPLACED',
+          message: 'Another runtime client registered for this user. Closing old connection.'
+        });
+        existing.close();
+        this.pythonClients.delete(existing);
+      }
+
       ws.clientType = 'PYTHON';
-      ws.userId = data.userId; // Python should send the userId it's monitoring
+      ws.userId = userId; // Python should send the userId it's monitoring
       ws.authenticated = true;
       this.pythonClients.add(ws);
+      this.pythonClientsByUser.set(userId, ws);
 
-      ws.send(JSON.stringify({ 
+      this.sendToClient(ws, {
         type: 'REGISTER_SUCCESS', 
         message: 'Python client registered' 
-      }));
+      });
 
-      console.log(`Python EEG client registered for user: ${data.userId}`);
+      this.notifyRuntimeStatus(userId, true);
+
+      console.log(`Python EEG client registered for user: ${userId}`);
     } else {
-      ws.send(JSON.stringify({ 
+      this.sendToClient(ws, {
         type: 'REGISTER_ERROR', 
         message: 'Invalid API key' 
-      }));
+      });
       ws.close();
     }
   }
@@ -137,11 +192,15 @@ class EEGWebSocketServer {
         type: 'EEG_DATA',
         timestamp: data.timestamp || new Date().toISOString(),
         attentionScore: data.attentionScore,
+        focusScore: data.focusScore ?? data.attentionScore,
         alpha: data.alpha,
         beta: data.beta,
         theta: data.theta,
         delta: data.delta,
         gamma: data.gamma,
+        sessionPhase: data.sessionPhase,
+        baselineFocus: data.baselineFocus,
+        audioLevels: data.audioLevels,
         isSoundActive: data.isSoundActive,
         interventionType: data.interventionType,
         rawData: data.rawData // Optional: for advanced visualization
@@ -155,27 +214,52 @@ class EEGWebSocketServer {
     }
   }
 
-  relayToPython(data) {
+  relayToPython(ws, data) {
     // Relay control commands from React to Python pipeline
-    const userId = data.userId;
+    const userId = String(data.userId || ws.userId || '').trim();
+    if (!userId) {
+      this.sendToClient(ws, {
+        type: 'COMMAND_ERROR',
+        code: 'MISSING_USER_ID',
+        message: 'Missing user id for command routing',
+        commandType: data.type
+      });
+      return;
+    }
     
-    // Find Python client for this user
-    for (const pythonClient of this.pythonClients) {
-      if (pythonClient.userId === userId && pythonClient.readyState === 1) {
-        pythonClient.send(JSON.stringify({
-          type: data.type,
-          command: data.command,
-          action: data.action,
-          parameters: data.parameters,
-          timestamp: new Date().toISOString()
-        }));
-        
-        console.log(`Relayed ${data.type} command to Python for user ${userId}`);
-        return;
-      }
+    const pythonClient = this.pythonClientsByUser.get(userId);
+    if (pythonClient && pythonClient.readyState === 1) {
+      this.sendToClient(pythonClient, {
+        type: data.type,
+        command: data.command,
+        action: data.action,
+        parameters: data.parameters,
+        timestamp: new Date().toISOString()
+      });
+
+      this.sendToClient(ws, {
+        type: 'COMMAND_ACK',
+        commandType: data.type,
+        action: data.action,
+        userId,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log(`Relayed ${data.type} command to Python for user ${userId}`);
+      return;
     }
 
     console.warn(`No Python client found for user ${userId}`);
+    this.sendToClient(ws, {
+      type: 'COMMAND_ERROR',
+      code: 'RUNTIME_UNAVAILABLE',
+      commandType: data.type,
+      action: data.action,
+      userId,
+      message: 'Python runtime client is not connected for this user',
+      timestamp: new Date().toISOString()
+    });
+    this.notifyRuntimeStatus(userId, false);
   }
 
   handleSessionComplete(data) {
@@ -210,18 +294,17 @@ class EEGWebSocketServer {
       console.log(`React client disconnected: ${ws.userId}`);
     } else if (ws.clientType === 'PYTHON') {
       this.pythonClients.delete(ws);
+      if (ws.userId && this.pythonClientsByUser.get(ws.userId) === ws) {
+        this.pythonClientsByUser.delete(ws.userId);
+        this.notifyRuntimeStatus(ws.userId, false);
+      }
       console.log(`Python client disconnected for user: ${ws.userId}`);
     }
   }
 
   // Utility method to check if user has active session
   hasActiveSession(userId) {
-    for (const pythonClient of this.pythonClients) {
-      if (pythonClient.userId === userId) {
-        return true;
-      }
-    }
-    return false;
+    return this.pythonClientsByUser.has(userId);
   }
 
   // Get connected clients count
@@ -229,6 +312,7 @@ class EEGWebSocketServer {
     return {
       reactClients: this.clients.size,
       pythonClients: this.pythonClients.size,
+      pythonUsers: Array.from(this.pythonClientsByUser.keys()),
       totalConnections: this.wss.clients.size
     };
   }

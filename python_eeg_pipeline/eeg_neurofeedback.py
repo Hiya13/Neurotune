@@ -3,13 +3,16 @@
 # pip install websocket-client numpy scipy sounddevice requests
 
 import json
+import os
 import time
 import threading
 import websocket
 import numpy as np
-import sounddevice as sd
 from scipy import signal
 import requests
+
+from neurotune_core import RLInferenceBridge, SessionState, SessionStateMachine, SimulatedEEGStream
+from sound_engine import SoundEngine
 
 class EEGNeurofeedbackPipeline:
     def __init__(self, user_id, api_key, ws_url='ws://localhost:5000/eeg-stream', api_url='http://localhost:5000/api'):
@@ -40,6 +43,36 @@ class EEGNeurofeedbackPipeline:
         # Sound generation
         self.sound_thread = None
         self.sample_rate = 44100
+        self.update_interval = 1.0  # 1Hz telemetry, aligned with current repo
+        self.sound_engine = SoundEngine(resource_dir=os.path.dirname(os.path.abspath(__file__)))
+
+        # Closed-loop core modules (ported from personal NeuroTune repo)
+        self.flow_threshold = 0.16
+        self.session_phase = SessionState.IDLE.value
+        self.last_action = np.zeros(5, dtype=np.float32)
+        self.last_audio_command = np.zeros(5, dtype=np.float32)
+        self.state_machine = SessionStateMachine(baseline_duration=30.0)
+        self.eeg_simulator = SimulatedEEGStream()
+
+        # Per-user persistent model path: used automatically for returning users.
+        self.user_models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'user_models')
+        os.makedirs(self.user_models_dir, exist_ok=True)
+
+        explicit_model_path = os.getenv('NEUROTUNE_PPO_MODEL_PATH')
+        default_model_stem = os.path.join(self.user_models_dir, f'{self.user_id}_ppo_model')
+        default_model_exists = os.path.exists(default_model_stem) or os.path.exists(f'{default_model_stem}.zip')
+
+        load_model_path = explicit_model_path or (default_model_stem if default_model_exists else None)
+        self.model_save_path = explicit_model_path or default_model_stem
+
+        self.rl_agent = RLInferenceBridge(model_path=load_model_path)
+        self.training_samples = []
+        self.enable_online_training = os.getenv('NEUROTUNE_ENABLE_ONLINE_TRAINING', '1').lower() not in ('0', 'false', 'no')
+        self.training_steps = int(os.getenv('NEUROTUNE_ONLINE_TRAIN_STEPS', '768'))
+
+        mode = 'PPO inference' if self.rl_agent.using_ppo else 'heuristic fallback'
+        source = load_model_path if load_model_path else 'new/fallback policy'
+        print(f"NeuroTune core initialized ({mode}) from {source}")
         
     def connect_websocket(self):
         """Connect to WebSocket server"""
@@ -140,9 +173,16 @@ class EEGNeurofeedbackPipeline:
         # Calculate power in each band
         band_powers = {}
         for band, (low, high) in bands.items():
-            idx = np.logical_and(freqs >= low, freqs <= high)
-            band_powers[band] = np.trapz(psd[idx], freqs[idx])
-        
+            freq_mask = (freqs >= low) & (freqs <= high)
+            if np.any(freq_mask):
+                # Use trapezoid integration (numpy 2.0+ uses trapezoid, older uses trapz)
+                if hasattr(np, 'trapezoid'):
+                    band_powers[band] = np.trapezoid(psd[freq_mask], freqs[freq_mask])
+                else:
+                    band_powers[band] = np.trapz(psd[freq_mask], freqs[freq_mask])
+            else:
+                band_powers[band] = 0
+            
         return band_powers
     
     def calculate_attention_score(self, band_powers):
@@ -164,58 +204,94 @@ class EEGNeurofeedbackPipeline:
         
         return attention_score
     
-    def generate_binaural_beat(self, attention_score):
-        """
-        Generate therapeutic sound based on attention score.
-        Lower attention = more stimulating frequency
-        Higher attention = calming frequency
-        """
-        if not self.is_sound_active:
-            return
-        
-        # Base frequency (carrier)
-        base_freq = 200  # Hz
-        
-        # Binaural beat frequency (difference between ears)
-        # Low attention: higher beat frequency (more alert - beta range)
-        # High attention: lower beat frequency (maintain focus - alpha range)
-        if attention_score < 50:
-            beat_freq = 20  # Beta (alertness)
-        elif attention_score < 75:
-            beat_freq = 10  # Alpha (focused relaxation)
-        else:
-            beat_freq = 6   # Theta (deep focus)
-        
-        # Generate stereo signal
-        duration = 0.2  # 200ms
-        t = np.linspace(0, duration, int(self.sample_rate * duration))
-        
-        # Left ear
-        left = np.sin(2 * np.pi * base_freq * t)
-        # Right ear (with binaural difference)
-        right = np.sin(2 * np.pi * (base_freq + beat_freq) * t)
-        
-        # Combine stereo and apply volume
-        volume = self.sound_volume / 100.0
-        stereo_signal = np.column_stack((left, right)) * volume * 0.3
-        
-        # Play sound
-        sd.play(stereo_signal, self.sample_rate, blocking=False)
-    
+
+
     def stream_eeg_loop(self):
         """Main loop for reading EEG and streaming data"""
         print("Starting EEG streaming loop...")
         
         while self.is_running:
             try:
-                # Read EEG data
-                eeg_data, fs = self.read_eeg_data()
-                
-                # Compute band powers
-                band_powers = self.compute_band_powers(eeg_data, fs)
-                
-                # Calculate attention score
-                attention_score = self.calculate_attention_score(band_powers)
+                tick_start = time.time()
+
+                # 1) Sense: run brain-state simulator
+                brain_state = 'flow' if float(self.last_action[0]) >= self.flow_threshold else 'distracted'
+                eeg_snapshot = self.eeg_simulator.step(state=brain_state, dt=self.update_interval)
+
+                band_powers = {
+                    'theta': float(eeg_snapshot['theta']),
+                    'alpha': float(eeg_snapshot['alpha']),
+                    'beta': float(eeg_snapshot['beta']),
+                    'delta': float(eeg_snapshot['delta']),
+                    'gamma': float(eeg_snapshot['gamma']),
+                }
+
+                # 2) Think: focus score + session state update + RL action
+                attention_score = float(eeg_snapshot['focus'])
+                phase = self.state_machine.update(attention_score, tick_start)
+                self.session_phase = phase.value
+
+                action = self.rl_agent.predict(
+                    theta=band_powers['theta'],
+                    alpha=band_powers['alpha'],
+                    beta=band_powers['beta'],
+                    current_focus=attention_score,
+                    baseline_focus=self.state_machine.baseline_focus,
+                    last_action=self.last_action,
+                    phase=phase,
+                )
+
+                # Respect intervention mode from frontend controls
+                if self.intervention_type not in ('auditory', 'multi-modal'):
+                    action = np.zeros(5, dtype=np.float32)
+
+                self.last_action = np.clip(np.asarray(action, dtype=np.float32), 0.0, 1.0)
+                self.is_sound_active = self.intervention_type in ('auditory', 'multi-modal')
+
+                if phase == SessionState.ACTIVE:
+                    obs = np.array(
+                        [
+                            float(np.clip(band_powers['theta'], 0.0, 1.0)),
+                            float(np.clip(band_powers['alpha'], 0.0, 1.0)),
+                            float(np.clip(band_powers['beta'], 0.0, 1.0)),
+                            float(np.clip(attention_score / 100.0, 0.0, 1.0)),
+                            float(np.clip(self.state_machine.baseline_focus / 100.0, 0.0, 1.0)),
+                            *np.clip(self.last_action, 0.0, 1.0),
+                        ],
+                        dtype=np.float32,
+                    )
+                    reward = float(np.clip((attention_score - self.state_machine.baseline_focus) / 100.0, -1.0, 1.0))
+                    self.training_samples.append(
+                        {
+                            'obs': obs,
+                            'action': np.array(self.last_action, dtype=np.float32),
+                            'reward': reward,
+                        }
+                    )
+                    if len(self.training_samples) > 4096:
+                        self.training_samples = self.training_samples[-4096:]
+
+                # Apply a soft ambient bed + smoothing so sound stays pleasant and continuous.
+                volume_scale = max(0.0, min(1.0, float(self.sound_volume) / 100.0))
+                if self.is_sound_active:
+                    if phase == SessionState.BASELINE:
+                        bed = np.array([0.14, 0.02, 0.10, 0.14, 0.0], dtype=np.float32)
+                        target_audio = bed
+                    else:
+                        shaped = np.array(self.last_action, dtype=np.float32)
+                        # Keep pulse/noise softer to avoid harshness.
+                        shaped[1] *= 0.60
+                        shaped[4] *= 0.35
+
+                        bed = np.array([0.18, 0.03, 0.12, 0.18, 0.01], dtype=np.float32)
+                        target_audio = np.maximum(bed, shaped)
+
+                    smoothed_audio = 0.68 * self.last_audio_command + 0.32 * target_audio
+                    self.last_audio_command = np.clip(smoothed_audio, 0.0, 1.0)
+                    audio_command = self.last_audio_command * volume_scale
+                else:
+                    self.last_audio_command = np.zeros(5, dtype=np.float32)
+                    audio_command = np.zeros(5, dtype=np.float32)
                 
                 # Store for session summary
                 self.session_data['attentionScores'].append(attention_score)
@@ -223,11 +299,10 @@ class EEGNeurofeedbackPipeline:
                 self.session_data['betaPowers'].append(band_powers['beta'])
                 self.session_data['thetaPowers'].append(band_powers['theta'])
                 self.session_data['deltaPowers'].append(band_powers['delta'])
-                self.session_data['timestamps'].append(time.time())
+                self.session_data['timestamps'].append(tick_start)
                 
-                # Generate therapeutic sound
-                if self.intervention_type == 'auditory':
-                    self.generate_binaural_beat(attention_score)
+                # 3) Act: update sound engine channels
+                self.sound_engine.update_params(audio_command)
                 
                 # Send data to React via WebSocket
                 if self.ws and self.ws.sock and self.ws.sock.connected:
@@ -236,11 +311,21 @@ class EEGNeurofeedbackPipeline:
                         'userId': self.user_id,
                         'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
                         'attentionScore': round(attention_score, 2),
+                        'focusScore': round(attention_score, 2),
                         'alpha': round(band_powers['alpha'], 2),
                         'beta': round(band_powers['beta'], 2),
                         'theta': round(band_powers['theta'], 2),
                         'delta': round(band_powers['delta'], 2),
-                        'gamma': round(band_powers.get('gamma', 0), 2),
+                        'gamma': round(band_powers['gamma'], 2),
+                        'sessionPhase': self.session_phase,
+                        'baselineFocus': round(float(self.state_machine.baseline_focus), 2),
+                        'audioLevels': {
+                            'binaural': round(float(audio_command[0]), 3),
+                            'pulse': round(float(audio_command[1]), 3),
+                            'rain': round(float(audio_command[2]), 3),
+                            'drone': round(float(audio_command[3]), 3),
+                            'noise': round(float(audio_command[4]), 3),
+                        },
                         'isSoundActive': self.is_sound_active,
                         'interventionType': self.intervention_type
                     }
@@ -248,7 +333,8 @@ class EEGNeurofeedbackPipeline:
                     self.ws.send(json.dumps(payload))
                 
                 # Sleep for update interval (e.g., 200ms = 5 Hz update rate)
-                time.sleep(0.2)
+                elapsed = time.time() - tick_start
+                time.sleep(max(0.01, self.update_interval - elapsed))
                 
             except Exception as e:
                 print(f"Error in EEG loop: {e}")
@@ -266,6 +352,11 @@ class EEGNeurofeedbackPipeline:
         self.sound_volume = parameters.get('soundVolume', 50)
         self.session_data['taskContext'] = parameters.get('taskContext', 'Unknown')
         self.session_data['startTime'] = time.time()
+        self.state_machine.start_session(self.session_data['startTime'])
+        self.session_phase = SessionState.BASELINE.value
+        self.last_action = np.zeros(5, dtype=np.float32)
+        self.last_audio_command = np.zeros(5, dtype=np.float32)
+        self.training_samples = []
         
         # Reset session data
         for key in ['attentionScores', 'alphaPowers', 'betaPowers', 'thetaPowers', 'deltaPowers', 'timestamps']:
@@ -273,6 +364,9 @@ class EEGNeurofeedbackPipeline:
         
         self.is_running = True
         self.is_sound_active = (self.intervention_type != 'none')
+
+        if self.is_sound_active:
+            self.sound_engine.start()
         
         # Start EEG streaming thread
         eeg_thread = threading.Thread(target=self.stream_eeg_loop)
@@ -289,9 +383,13 @@ class EEGNeurofeedbackPipeline:
         
         self.is_running = False
         self.is_sound_active = False
+        self.state_machine.end_session()
+        self.session_phase = SessionState.ENDED.value
         self.session_data['endTime'] = time.time()
-        
-        sd.stop()  # Stop any playing sound
+        self.last_audio_command = np.zeros(5, dtype=np.float32)
+
+        self.sound_engine.update_params(np.zeros(5, dtype=np.float32))
+        self.sound_engine.stop()
         
         # Calculate session summary
         time.sleep(1)  # Wait for last data points
@@ -304,7 +402,7 @@ class EEGNeurofeedbackPipeline:
                 'interventionType': self.intervention_type,
                 'taskContext': self.session_data['taskContext'],
                 'sessionDuration': int((self.session_data['endTime'] - self.session_data['startTime']) / 60),
-                'baselineScore': round(np.mean(self.session_data['attentionScores'][:10]) if len(self.session_data['attentionScores']) >= 10 else 0, 2),
+                'baselineScore': round(float(self.state_machine.baseline_focus) if self.state_machine.baseline_focus > 0 else np.mean(self.session_data['attentionScores'][:10]) if len(self.session_data['attentionScores']) >= 10 else 0, 2),
                 'peakScore': round(max(self.session_data['attentionScores']), 2),
                 'averageScore': round(np.mean(self.session_data['attentionScores']), 2),
                 'stressLevel': 'moderate',  # You can calculate this based on data
@@ -318,6 +416,15 @@ class EEGNeurofeedbackPipeline:
             
             # Save to MongoDB via API
             self.save_session_to_db(summary)
+
+            if self.enable_online_training:
+                trained, msg = self.rl_agent.train_on_session(
+                    self.training_samples,
+                    save_path=self.model_save_path,
+                    total_timesteps=self.training_steps,
+                )
+                status = '✓' if trained else '⚠️'
+                print(f"{status} Online model update: {msg}")
             
             # Notify React clients via WebSocket
             if self.ws and self.ws.sock and self.ws.sock.connected:
@@ -367,10 +474,12 @@ class EEGNeurofeedbackPipeline:
         
         if action == 'start':
             self.is_sound_active = True
+            self.sound_engine.start()
             print("Sound activated")
         elif action == 'stop':
             self.is_sound_active = False
-            sd.stop()
+            self.sound_engine.update_params(np.zeros(5, dtype=np.float32))
+            self.sound_engine.stop()
             print("Sound deactivated")
         elif action == 'volume':
             self.sound_volume = data.get('parameters', {}).get('volume', 50)
@@ -400,11 +509,29 @@ class EEGNeurofeedbackPipeline:
 
 
 if __name__ == '__main__':
+    print("="*50)
+    print("Starting EEG Neuropipeline Host...")
+    print("="*50)
+
     # Configuration
-    USER_ID = "6994a0088e0efc10b3190b96"  # Get this from your user account
-    API_KEY = "your_python_api_key_change_this"  # Same as in backend .env
-    WS_URL = "ws://localhost:5000/eeg-stream"
-    API_URL = "http://localhost:5000/api"
+    API_KEY = os.getenv('PYTHON_API_KEY', 'your_python_api_key_change_this')
+    WS_URL = os.getenv('NEUROTUNE_WS_URL', 'ws://localhost:5000/eeg-stream')
+    API_URL = os.getenv('NEUROTUNE_API_URL', 'http://localhost:5000/api')
+    
+    # Dynamically fetch user ID via HTTP Polling
+    print("\nWaiting for a user to log in on the React frontend dashboard...")
+    USER_ID = None
+    while not USER_ID:
+        try:
+            response = requests.get(f"{API_URL}/auth/active-local-user")
+            if response.status_code == 200 and response.json().get('userId'):
+                USER_ID = response.json().get('userId')
+                break
+        except Exception:
+            pass
+        time.sleep(2)
+        
+    print(f"\n✓ User {USER_ID} logged in automatically! Booting pipeline parameters...\n")
     
     # Create and run pipeline
     pipeline = EEGNeurofeedbackPipeline(

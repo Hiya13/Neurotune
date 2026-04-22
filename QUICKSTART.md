@@ -12,7 +12,7 @@ This guide will help you get the system running in **5 minutes**.
 
 ```powershell
 # From project root
-cd "c:\Users\lenovo\OneDrive\Desktop\Major Project"
+cd "c:\Users\tshub\OneDrive\Desktop\Neurotune"
 
 # Install Node.js dependencies
 npm install
@@ -62,7 +62,16 @@ mongod --dbpath "C:\data\db"
 
 ## Step 4: Run the System (1 minute)
 
-Open **3 terminals**:
+### Option A: One command (recommended)
+
+```powershell
+# From project root
+npm run dev:full
+```
+
+This starts backend + frontend + Python pipeline together.
+
+### Option B: 3 terminals (manual)
 
 ### Terminal 1 - Backend
 ```powershell
@@ -82,21 +91,17 @@ Wait for: `Local: http://localhost:5173/`
 ```powershell
 cd python_eeg_pipeline
 .\venv\Scripts\Activate.ps1
+$env:NEUROTUNE_USER_ID = "paste_your_user_id_here"
+$env:PYTHON_API_KEY = "mysecretkey123"  # Must match backend .env
 python eeg_neurofeedback.py
 ```
 
-**BEFORE running Python script:**
+To get your user id quickly:
 1. Open browser at `http://localhost:5173`
-2. Create account and login
+2. Login
 3. Open browser console (F12)
-4. Run: `localStorage.getItem('userId')`
-5. Copy your user ID
-6. Edit `eeg_neurofeedback.py` line ~368:
-   ```python
-   USER_ID = "paste_your_user_id_here"
-   API_KEY = "mysecretkey123"  # Match backend .env
-   ```
-7. Now run the Python script
+4. Run `localStorage.getItem('userId')`
+5. Paste into `NEUROTUNE_USER_ID`
 
 Wait for: `✓ Ready! Waiting for session start command`
 
@@ -126,8 +131,8 @@ Wait for: `✓ Ready! Waiting for session start command`
 - Check `http://localhost:5000/api/health` in browser
 
 ### "Python client registration failed"
-- Verify `API_KEY` in Python script matches `PYTHON_API_KEY` in `backend\.env`
-- Ensure `USER_ID` is correct
+- Verify `$env:PYTHON_API_KEY` matches `PYTHON_API_KEY` in `backend\.env`
+- Ensure `$env:NEUROTUNE_USER_ID` is correct
 
 ### "MongoDB connection error"
 - Start MongoDB: `net start MongoDB`

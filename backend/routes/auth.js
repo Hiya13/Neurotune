@@ -5,6 +5,10 @@ import { authenticateUser } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Local cache for standalone pipeline pairing
+let activeLocalUserId = null;
+
+
 // Generate JWT token
 const generateToken = (userId) => {
   return jwt.sign(
@@ -49,6 +53,9 @@ router.post('/register', async (req, res) => {
 
     // Generate token
     const token = generateToken(user._id);
+
+    // Save for Python headless fetch
+    activeLocalUserId = user._id;
 
     res.status(201).json({
       success: true,
@@ -107,6 +114,9 @@ router.post('/login', async (req, res) => {
     // Generate token
     const token = generateToken(user._id);
 
+    // Save for Python headless fetch
+    activeLocalUserId = user._id;
+
     res.json({
       success: true,
       message: 'Login successful',
@@ -134,13 +144,16 @@ router.post('/login', async (req, res) => {
 router.get('/me', authenticateUser, async (req, res) => {
   try {
     const user = await User.findById(req.user.uid);
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
         error: 'User not found'
       });
     }
+
+    // Save for Python headless fetch
+    activeLocalUserId = user._id;
 
     res.json({
       success: true,
@@ -160,6 +173,11 @@ router.get('/me', authenticateUser, async (req, res) => {
       message: error.message
     });
   }
+});
+
+// GET /api/auth/active-local-user - Polled by Python pipeline
+router.get('/active-local-user', (req, res) => {
+  res.json({ userId: activeLocalUserId });
 });
 
 // PUT /api/auth/update-password - Update password
@@ -182,7 +200,7 @@ router.put('/update-password', authenticateUser, async (req, res) => {
     }
 
     const user = await User.findById(req.user.uid);
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -221,7 +239,7 @@ router.put('/update-password', authenticateUser, async (req, res) => {
 router.post('/refresh', authenticateUser, async (req, res) => {
   try {
     const token = generateToken(req.user.uid);
-    
+
     res.json({
       success: true,
       data: { token }
