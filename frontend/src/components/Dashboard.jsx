@@ -6,6 +6,7 @@ import ScoreTrendChart from './ScoreTrendChart';
 import LatestSessionDetails from './LatestSessionDetails';
 import LiveEEGMonitor from './LiveEEGMonitor';
 import SessionControls from './SessionControls';
+import { createSimulator, PROFILE_LABELS } from '../utils/eegSimulator';
 import BrowserSoundEngine from '../audio/browserSoundEngine';
 
 const ZERO_AUDIO_LEVELS = { binaural: 0, pulse: 0, rain: 0, drone: 0, noise: 0 };
@@ -144,6 +145,56 @@ function Dashboard({ user, sessions, onRefresh, isLoading, wsConnected }) {
     };
   }, []);
 
+  // ── Simulator fallback when no live WS ────────────
+  const simRef = useRef(null);
+  const simRafRef = useRef(null);
+  const simLastTime = useRef(null);
+  const [simProfileLabel, setSimProfileLabel] = useState(null);
+
+  useEffect(() => {
+    // Only run simulator when WS is NOT connected
+    if (wsConnected) {
+      if (simRafRef.current) cancelAnimationFrame(simRafRef.current);
+      simRef.current = null;
+      simLastTime.current = null;
+      setSimProfileLabel(null);
+      return;
+    }
+
+    simRef.current = createSimulator();
+    const state = simRef.current.getState();
+    setSimProfileLabel(PROFILE_LABELS[state.profileName] || state.profileName);
+
+    const loop = (ts) => {
+      if (!simRef.current) return;
+      if (simLastTime.current == null) simLastTime.current = ts;
+      const dt = Math.min((ts - simLastTime.current) / 1000, 0.1);
+      simLastTime.current = ts;
+
+      const result = simRef.current.tick(dt);
+      setLiveMetrics({
+        attentionScore: Math.round(result.attentionScore),
+        alpha: +(result.bandPowers.alpha * 100).toFixed(1),
+        beta:  +(result.bandPowers.beta  * 100).toFixed(1),
+        theta: +(result.bandPowers.theta * 100).toFixed(1),
+        delta: +(result.bandPowers.delta * 100).toFixed(1),
+        gamma: +(result.bandPowers.gamma * 100).toFixed(1),
+        isSoundActive: false,
+        timestamp: new Date().toISOString(),
+      });
+
+      simRafRef.current = requestAnimationFrame(loop);
+    };
+
+    simRafRef.current = requestAnimationFrame(loop);
+
+    return () => {
+      if (simRafRef.current) cancelAnimationFrame(simRafRef.current);
+      simRef.current = null;
+      simLastTime.current = null;
+    };
+  }, [wsConnected]);
+
   const handleStartSession = async (config) => {
     if (!runtimeReady) {
       alert('Python runtime is offline. Start the EEG pipeline and retry.');
@@ -273,7 +324,8 @@ function Dashboard({ user, sessions, onRefresh, isLoading, wsConnected }) {
           <div className="lg:col-span-2">
             <LiveEEGMonitor
               liveMetrics={liveMetrics}
-              sessionActive={sessionActive}
+              sessionActive={sessionActive || (!wsConnected && !!simRef.current)}
+              simProfileLabel={!wsConnected ? simProfileLabel : null}
             />
           </div>
         </div>

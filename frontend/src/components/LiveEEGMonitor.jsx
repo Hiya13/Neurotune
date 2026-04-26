@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-function LiveEEGMonitor({ liveMetrics, sessionActive }) {
+function LiveEEGMonitor({ liveMetrics, sessionActive, simProfileLabel }) {
   const [history, setHistory] = useState([]);
   const maxHistoryLength = 60; // Keep last 60 data points
 
@@ -11,7 +11,10 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
           timestamp: liveMetrics.timestamp,
           attentionScore: liveMetrics.attentionScore,
           alpha: liveMetrics.alpha,
-          beta: liveMetrics.beta
+          beta: liveMetrics.beta,
+          theta: liveMetrics.theta,
+          delta: liveMetrics.delta,
+          gamma: liveMetrics.gamma
         }];
         return newHistory.slice(-maxHistoryLength);
       });
@@ -230,6 +233,12 @@ function LiveEEGMonitor({ liveMetrics, sessionActive }) {
               {sessionActive ? 'Live Session Active' : 'No Active Session'}
             </span>
           </div>
+          {simProfileLabel && (
+            <div className="flex items-center space-x-2 text-amber-300 bg-amber-900/50 border border-amber-500/30 px-4 py-2 rounded-full">
+              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              <span className="text-sm font-bold tracking-tight uppercase">Simulated &middot; {simProfileLabel}</span>
+            </div>
+          )}
           {liveMetrics.isSoundActive && (
             <div className="flex items-center space-x-2 text-white bg-slate-700/50 backdrop-blur px-4 py-2 rounded-full">
               <svg className="w-5 h-5 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
