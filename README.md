@@ -32,6 +32,45 @@ A real-time neurofeedback platform for attention monitoring and enhancement usin
 - **Full-screen coastal neurofeedback game** driven by a dedicated WebSocket attention score (`ws://localhost:8080` by default), with **demo mode** when no server is available.
 - **Documentation:** [docs/TIDE_CONTROLLER.md](docs/TIDE_CONTROLLER.md) — demo vs production, protocol, artifacts, saving sessions, troubleshooting.
 
+# STEW Dataset
+
+This folder should contain the raw EEG `.txt` files from the
+STEW (Simultaneous Task EEG Workload) Dataset.
+
+## Download
+
+Download from IEEE DataPort:
+https://ieee-dataport.org/open-access/stew-simultaneous-task-eeg-workload-dataset
+
+Or from Kaggle:
+https://www.kaggle.com/datasets/mitulahirwal/mental-cognitive-workload-eeg-data-stew-dataset
+
+## File Naming Convention
+
+After downloading, place the files here:
+
+    stew_data/
+    ├── sub01_lo.txt   ← Subject 1, resting state
+    ├── sub01_hi.txt   ← Subject 1, multitasking task
+    ├── sub02_lo.txt
+    ├── sub02_hi.txt
+    ├── ...
+    └── sub48_hi.txt
+
+## Format
+
+- 14 columns (EEG channels): AF3, F7, F3, FC5, T7, P7, O1, O2, P8, T8, FC6, F4, F8, AF4
+- 128 Hz sampling rate
+- ~19,200 rows per file (2.5 minutes)
+- No header row — raw numbers only
+
+## Citation
+
+Lim, W.L., Sourina, O., Wang, L.P. (2018).
+STEW: Simultaneous Task EEG Workload Dataset.
+IEEE Transactions on Neural Systems and Rehabilitation Engineering, 26(5).
+DOI: 10.1109/TNSRE.2018.2803577
+
 ## 📋 Tech Stack
 
 ### Frontend

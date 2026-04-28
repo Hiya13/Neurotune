@@ -52,7 +52,21 @@ class EEGNeurofeedbackPipeline:
         self.last_action = np.zeros(5, dtype=np.float32)
         self.last_audio_command = np.zeros(5, dtype=np.float32)
         self.state_machine = SessionStateMachine(baseline_duration=30.0)
-        self.eeg_simulator = SimulatedEEGStream()
+        # --- STEW Dataset Stream (Pope 1995 Engagement Index) ---
+        import os as _os
+        _stew_folder = _os.path.join(_os.path.dirname(__file__), 'stew_data')
+        if _os.path.exists(_stew_folder) and any(f.endswith('.txt') for f in _os.listdir(_stew_folder)):
+            from dataset_eeg_stream import STEWDatasetStream
+            self.eeg_simulator = STEWDatasetStream(
+                dataset_folder=_stew_folder,
+                subject_id=1,
+                use_task=True,
+                loop=True
+            )
+            print("[EEG] Using STEW real dataset")
+        else:
+            self.eeg_simulator = SimulatedEEGStream()
+            print("[EEG] STEW data not found — using SimulatedEEGStream fallback")
 
         # Per-user persistent model path: used automatically for returning users.
         self.user_models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'user_models')
